@@ -67,7 +67,12 @@ public class Loading extends JPanel implements MouseListener {
         g.setColor(Color.RED);
         g.setFont(new Font("Malgun Gothic", Font.BOLD, 30));
 
-        String dots = ".".repeat(dotCount);   // ".", "..", "..."
+        // Java 8 호환: String.repeat() 대신 StringBuilder 사용
+        StringBuilder dotsBuilder = new StringBuilder();
+        for (int i = 0; i < dotCount; i++) {
+            dotsBuilder.append(".");
+        }
+        String dots = dotsBuilder.toString();   // ".", "..", "..."
         String msg = dots;
 
         FontMetrics fm = g.getFontMetrics();

@@ -413,8 +413,9 @@ public class NoNextFloorGame extends JFrame {
 
     	// 무기 시스템
     	private Rectangle lastCollidedWall = null;
-    	private enum Weapon { PISTOL, SHOTGUN }
-    	private Weapon currentWeapon = Weapon.PISTOL;
+    	private static final int WEAPON_PISTOL = 0;
+    	private static final int WEAPON_SHOTGUN = 1;
+    	private int currentWeapon = WEAPON_PISTOL;
     	private Image pistolIcon;
     	private Image shotgunIcon;
     	private Rectangle pistolSlotRect;
@@ -494,24 +495,29 @@ public class NoNextFloorGame extends JFrame {
                 
                 // 2. 스테이지별 BGM 및 베이스 BGM(bgm)을 통합하여 재생
                 switch(stage) {
-                    case 1 -> {
+                    case 1:
                         //SoundManager.playLoop("bgm", 0.03f); // 👈 bgm.wav 추가
                         SoundManager.playLoop("game_bg", 0.03f);
-                    }
-                    case 2 -> {
+                        break;
+                    case 2:
                        // SoundManager.playLoop("bgm", 0.03f); // 👈 bgm.wav 추가
                         SoundManager.playLoop("game_bg2", 0.15f);
-                    }
-                    case 3 -> {
+                        break;
+                    case 3:
                        // SoundManager.playLoop("bgm", 0.03f); // 👈 bgm.wav 추가
                         SoundManager.playLoop("game_bg3", 0.15f);
-                    }
+                        break;
                 }
                 
                 // 3. 스테이지별 좀비 BGM
                 switch(stage) {
-                    case 1 -> SoundManager.playLoop("zombie1", 0.2f);
-                    case 2, 3 -> SoundManager.playLoop("zombie23", 0.2f);
+                    case 1:
+                        SoundManager.playLoop("zombie1", 0.2f);
+                        break;
+                    case 2:
+                    case 3:
+                        SoundManager.playLoop("zombie23", 0.2f);
+                        break;
                 }
             } 
             // 👆 if 블록 닫힘. (생성자는 아직 닫히지 않았습니다.)
@@ -559,13 +565,24 @@ public class NoNextFloorGame extends JFrame {
                                 // 🌟 [수정된 부분]: SoundManager.playLoop("bgm", 0.2f); 라인만 삭제 🌟
             	                switch(stageForThisPanel) 
             	                { 
-            	                    case 1 -> SoundManager.playLoop("game_bg", 0.15f); 
-            	                    case 2 -> SoundManager.playLoop("game_bg2", 0.15f); 
-            	                    case 3 -> SoundManager.playLoop("game_bg3", 0.15f); 
+            	                    case 1:
+            	                        SoundManager.playLoop("game_bg", 0.15f);
+            	                        break;
+            	                    case 2:
+            	                        SoundManager.playLoop("game_bg2", 0.15f);
+            	                        break;
+            	                    case 3:
+            	                        SoundManager.playLoop("game_bg3", 0.15f);
+            	                        break;
             	                } 
             	                switch(stageForThisPanel) { 
-            	                    case 1 -> SoundManager.playLoop("zombie1", 0.2f); 
-            	                    case 2, 3 -> SoundManager.playLoop("zombie23", 0.2f); 
+            	                    case 1:
+            	                        SoundManager.playLoop("zombie1", 0.2f);
+            	                        break;
+            	                    case 2:
+            	                    case 3:
+            	                        SoundManager.playLoop("zombie23", 0.2f);
+            	                        break;
             	                } 
             	            }
             	            
@@ -590,8 +607,6 @@ public class NoNextFloorGame extends JFrame {
             	    }
 
             	    // 게임 중 발사 처리 (기존 코드 유지)
-            	    int mouseX = e.getX();
-            	    int mouseY = e.getY();
             	   // shootBullet(mouseX, mouseY);
             	//사운드 중복 방지할려고 주석처리했어요
 
@@ -599,12 +614,12 @@ public class NoNextFloorGame extends JFrame {
 
                     // 슬롯 클릭 우선 처리
                     if (pistolSlotRect != null && pistolSlotRect.contains(mx, my)) {
-                        currentWeapon = Weapon.PISTOL;
+                        currentWeapon = WEAPON_PISTOL;
                         System.out.println("PISTOL selected");
                         return;
                     }
                     if (shotgunSlotRect != null && shotgunSlotRect.contains(mx, my)) {
-                        currentWeapon = Weapon.SHOTGUN;
+                        currentWeapon = WEAPON_SHOTGUN;
                         System.out.println("SHOTGUN selected");
                         return;
                     }
@@ -796,7 +811,7 @@ public class NoNextFloorGame extends JFrame {
             long now = System.nanoTime();
             
             // 쿨다운 체크
-            long cooldown = (currentWeapon == Weapon.PISTOL) ? PISTOL_COOLDOWN : SHOTGUN_COOLDOWN;
+            long cooldown = (currentWeapon == WEAPON_PISTOL) ? PISTOL_COOLDOWN : SHOTGUN_COOLDOWN;
             if (now - lastShootTime < cooldown) return;
             
             // 플레이어 중심 좌표
@@ -805,11 +820,11 @@ public class NoNextFloorGame extends JFrame {
             
             // 🌟 무기 SFX 재생
             if (!mainGame.isMuted()) {
-                if(currentWeapon == Weapon.PISTOL) SoundManager.play("pistol", 0.7f);
-                else if(currentWeapon == Weapon.SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 0.7f);
+                else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
             }
             
-            if (currentWeapon == Weapon.PISTOL) {
+            if (currentWeapon == WEAPON_PISTOL) {
                 if (NoNextFloorGame.this.pistolAmmo <= 0) return;
 
                 NoNextFloorGame.this.pistolAmmo--;
@@ -818,7 +833,7 @@ public class NoNextFloorGame extends JFrame {
                 int pistolLife = 120; // 권총 사거리 제한 (이동 로직에 따라 조정)
                 bullets.add(new Bullet(centerX, centerY, angle, pistolLife));
 
-            } else if (currentWeapon == Weapon.SHOTGUN) {
+            } else if (currentWeapon == WEAPON_SHOTGUN) {
                 if (NoNextFloorGame.this.shotgunAmmo <= 0) return;
 
                 NoNextFloorGame.this.shotgunAmmo--;
@@ -895,9 +910,15 @@ public class NoNextFloorGame extends JFrame {
                 
                 // 2. 스테이지별 BGM (볼륨 0.15f -> 0.08f로 낮춤, 파일명은 기존 유지)
                 switch(stageForThisPanel) {
-                    case 1 -> SoundManager.playLoop("game_bg", 0.03f); 
-                    case 2 -> SoundManager.playLoop("game_bg2", 0.08f);
-                    case 3 -> SoundManager.playLoop("game_bg3", 0.08f);
+                    case 1:
+                        SoundManager.playLoop("game_bg", 0.03f);
+                        break;
+                    case 2:
+                        SoundManager.playLoop("game_bg2", 0.08f);
+                        break;
+                    case 3:
+                        SoundManager.playLoop("game_bg3", 0.08f);
+                        break;
                 }
                 
                 // 3. 좀비 사운드는 1F, 2F, 3F 스테이지 BGM이 재생 중일 때만 나오도록 조건 변경 
@@ -905,8 +926,13 @@ public class NoNextFloorGame extends JFrame {
                 //    좀비 사운드 자체의 볼륨은 0.4f로 유지합니다.
                 //    요청하신 조건이 '이 BGM에서만 나오게' 이므로, 모든 BGM에 조건이 걸리도록 유지합니다.
                 switch(stageForThisPanel) {
-                    case 1 -> SoundManager.playLoop("zombie1", 0.2f);
-                    case 2, 3 -> SoundManager.playLoop("zombie23", 0.2f);
+                    case 1:
+                        SoundManager.playLoop("zombie1", 0.2f);
+                        break;
+                    case 2:
+                    case 3:
+                        SoundManager.playLoop("zombie23", 0.2f);
+                        break;
                 }
             }
         }
@@ -1158,10 +1184,7 @@ public class NoNextFloorGame extends JFrame {
                        }
                    }
                 // 우측 하단 무기 슬롯 표시
-                   int slotSize = 48;
-                   int margin = 20;
-                   int slotX = getWidth() - margin - slotSize;
-                   int slotY = getHeight() - margin - slotSize;
+                   // slotSize와 margin은 addHomeButton()에서 이미 계산됨
 
                    // 피스톨 슬롯 (오른쪽)
                    if (pistolSlotRect != null) {
@@ -1171,7 +1194,7 @@ public class NoNextFloorGame extends JFrame {
                        // 아이콘
                        if (pistolIcon != null) g.drawImage(pistolIcon, pistolSlotRect.x + 4, pistolSlotRect.y + 4, pistolSlotRect.width - 8, pistolSlotRect.height - 8, null);
                        // 선택 테두리
-                       if (currentWeapon == Weapon.PISTOL) {
+                       if (currentWeapon == WEAPON_PISTOL) {
                            g.setColor(Color.YELLOW);
                            g.drawRect(pistolSlotRect.x, pistolSlotRect.y, pistolSlotRect.width, pistolSlotRect.height);
                        }
@@ -1186,7 +1209,7 @@ public class NoNextFloorGame extends JFrame {
                        g.setColor(new Color(0, 0, 0, 120));
                        g.fillRect(shotgunSlotRect.x, shotgunSlotRect.y, shotgunSlotRect.width, shotgunSlotRect.height);
                        if (shotgunIcon != null) g.drawImage(shotgunIcon, shotgunSlotRect.x + 4, shotgunSlotRect.y + 4, shotgunSlotRect.width - 8, shotgunSlotRect.height - 8, null);
-                       if (currentWeapon == Weapon.SHOTGUN) {
+                       if (currentWeapon == WEAPON_SHOTGUN) {
                            g.setColor(Color.YELLOW);
                            g.drawRect(shotgunSlotRect.x, shotgunSlotRect.y, shotgunSlotRect.width, shotgunSlotRect.height);
                        }
@@ -1322,30 +1345,30 @@ public class NoNextFloorGame extends JFrame {
            // 전방 총알 발사 (스페이스바)
            private void shootBulletForward() {
                long now = System.nanoTime();
-               long cooldown = (currentWeapon == Weapon.PISTOL) ? PISTOL_COOLDOWN : SHOTGUN_COOLDOWN;
+               long cooldown = (currentWeapon == WEAPON_PISTOL) ? PISTOL_COOLDOWN : SHOTGUN_COOLDOWN;
                if (now - lastShootTime < cooldown) return;
 
                // 탄약 체크 
-               if (currentWeapon == Weapon.PISTOL && NoNextFloorGame.this.pistolAmmo <= 0) {
+               if (currentWeapon == WEAPON_PISTOL && NoNextFloorGame.this.pistolAmmo <= 0) {
                    System.out.println("피스톨 탄약 떨어짐");
                    return;
                }
-               if (currentWeapon == Weapon.SHOTGUN && NoNextFloorGame.this.shotgunAmmo <= 0) {
+               if (currentWeapon == WEAPON_SHOTGUN && NoNextFloorGame.this.shotgunAmmo <= 0) {
                    System.out.println("샷건 탄약 떨어짐");
                    return;
                }
                
                // 🌟 무기 SFX 재생
                if (!mainGame.isMuted()) {
-                   if(currentWeapon == Weapon.PISTOL) SoundManager.play("pistol", 0.7f);
-                   else if(currentWeapon == Weapon.SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                   if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 0.7f);
+                   else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
                }
 
                lastShootTime = now;
                int bulletX = player.x + player.playerWidth / 2;
                int bulletY = player.y + player.playerHeight / 2;
 
-               if (currentWeapon == Weapon.PISTOL) {
+               if (currentWeapon == WEAPON_PISTOL) {
                    NoNextFloorGame.this.pistolAmmo--;
                    int pistolLife = 120;
                    bullets.add(new Bullet(bulletX, bulletY, player.angle, pistolLife));
