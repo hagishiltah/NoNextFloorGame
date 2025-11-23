@@ -44,10 +44,23 @@ public class Player {
             if (normalFile.exists()) playerImage = ImageIO.read(normalFile);
             if (damagedFile.exists()) damagedImage = ImageIO.read(damagedFile);
 
-            int originalWidth = playerImage.getWidth(null);
-            int originalHeight = playerImage.getHeight(null);
-            this.playerWidth = (int) (originalWidth * scale);
-            this.playerHeight = (int) (originalHeight * scale);
+            // Java 21 호환: null 안전성 강화 및 이미지 크기 가져오기
+            if (playerImage != null) {
+                int originalWidth = playerImage.getWidth(null);
+                int originalHeight = playerImage.getHeight(null);
+                if (originalWidth > 0 && originalHeight > 0) {
+                    this.playerWidth = (int) (originalWidth * scale);
+                    this.playerHeight = (int) (originalHeight * scale);
+                } else {
+                    // 이미지가 아직 로드되지 않은 경우 기본값 사용
+                    this.playerWidth = (int) (30 * scale);
+                    this.playerHeight = (int) (40 * scale);
+                }
+            } else {
+                // 이미지 로드 실패 시 기본값 사용
+                this.playerWidth = (int) (30 * scale);
+                this.playerHeight = (int) (40 * scale);
+            }
 
         } catch (IOException e) {
             System.out.println("플레이어 이미지 로드 실패: " + e.getMessage());

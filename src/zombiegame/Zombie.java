@@ -42,11 +42,23 @@ public class Zombie {
             zombieImage = ImageIO.read(new File("images/zombie.png"));
             damagedImage = ImageIO.read(new File("images/damaged_zombie.png"));
             
-            // 이미지 크기 설정
-            int originalWidth = zombieImage.getWidth(null);
-            int originalHeight = zombieImage.getHeight(null);
-            zombieWidth = (int) (originalWidth * scale);
-            zombieHeight = (int) (originalHeight * scale);
+            // Java 21 호환: null 안전성 강화 및 이미지 크기 가져오기
+            if (zombieImage != null) {
+                int originalWidth = zombieImage.getWidth(null);
+                int originalHeight = zombieImage.getHeight(null);
+                if (originalWidth > 0 && originalHeight > 0) {
+                    zombieWidth = (int) (originalWidth * scale);
+                    zombieHeight = (int) (originalHeight * scale);
+                } else {
+                    // 이미지가 아직 로드되지 않은 경우 기본값 사용
+                    zombieWidth = 40;
+                    zombieHeight = 40;
+                }
+            } else {
+                // 이미지 로드 실패 시 기본값 사용
+                zombieWidth = 40;
+                zombieHeight = 40;
+            }
             
         } catch (IOException e) {
             System.out.println("좀비 이미지 로드 실패: " + e.getMessage());
