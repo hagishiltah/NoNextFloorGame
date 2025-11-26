@@ -1,17 +1,17 @@
-// HowToPlayPanel.java 파일 내용 (전체)
-
-package zombiegame; // 👈 📌 이 줄이 반드시 있어야 합니다.
+package zombiegame; 
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.File;
 import javax.imageio.ImageIO;
 import java.io.IOException;
 
 // 📌 파일명과 클래스명이 대소문자까지 정확히 일치해야 합니다.
-public class HowToPlayPanel extends JPanel { 
+public class HowToPlayPanel extends JPanel implements KeyListener { 
     private NoNextFloorGame mainGame;
     private Image howToPlayImage;
     private static final String HOW_TO_PLAY_IMAGE_PATH = "images/howtoplay.png";
@@ -30,11 +30,32 @@ public class HowToPlayPanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                mainGame.remove(HowToPlayPanel.this);
-                mainGame.showStageIntro(1); 
+                proceedToNext();
             }
         });
+        
+        setFocusable(true);
+        addKeyListener(this);
+        requestFocusInWindow();
     }
+    
+    private void proceedToNext() {
+        mainGame.remove(HowToPlayPanel.this);
+        mainGame.showStageIntro(1);
+    }
+    
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+            proceedToNext();
+        }
+    }
+    
+    @Override
+    public void keyTyped(KeyEvent e) {}
+    
+    @Override
+    public void keyReleased(KeyEvent e) {}
 
     @Override
     protected void paintComponent(Graphics g) {

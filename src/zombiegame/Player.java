@@ -33,7 +33,7 @@ public class Player {
     public Player(int startX, int startY) {
         this.x = startX;
         this.y = startY;
-        this.speed = 5;
+        this.speed = 2;
         this.hp = 3;
         this.angle = 0;
 

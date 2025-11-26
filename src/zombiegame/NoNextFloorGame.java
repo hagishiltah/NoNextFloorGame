@@ -8,11 +8,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
 import java.awt.RadialGradientPaint;
+import java.awt.BasicStroke;
 
 
 public class NoNextFloorGame extends JFrame {
@@ -28,12 +27,10 @@ public class NoNextFloorGame extends JFrame {
     private HowToPlayPanel howToPlayPanel;
 
     // 색상 정의 (기존 유지)
-    private static final Color RED_PRIMARY = new Color(255, 0, 0);
-    private static final Color RED_DARK = new Color(139, 0, 0);
-    private static final Color RED_LIGHT = new Color(255, 102, 102);
-    private static final Color RED_TRANSPARENT = new Color(255, 0, 0, 180);
-    private static final Color BLACK_TRANSPARENT = new Color(0, 0, 0, 180);
-    private static final Color TEXT_RED = new Color(255, 100, 100, 180);
+    // private static final Color RED_PRIMARY = new Color(255, 0, 0);
+    // private static final Color RED_DARK = new Color(139, 0, 0);
+    // private static final Color RED_LIGHT = new Color(255, 102, 102);
+    // private static final Color BLACK_TRANSPARENT = new Color(0, 0, 0, 180);
 
     // 스테이지 관리
     private int stage = 1;
@@ -50,7 +47,7 @@ public class NoNextFloorGame extends JFrame {
         { {350, 130}, {880, 450}, {700, 500} },
         // stage 2: 5 마리
         { {400, 150}, {700, 180}, {400, 400}, {900, 420}, {800, 220} },
-        // stage 3: 3 마리
+        // stage 3: 2 마리
         { {300, 450},{500, 420} }
     };
 
@@ -85,168 +82,70 @@ public class NoNextFloorGame extends JFrame {
     
 
     /* ===================== GamePanel (메뉴 화면) ===================== */
-    class GamePanel extends JPanel {
-        private Timer animationTimer;
-        private float titleOpacity = 0f;
-        private float buttonOpacity = 0f;
-        private float textOpacity = 0f;
+    class GamePanel extends JPanel implements KeyListener {
+        private Image backgroundImage;
+        private Image startButtonImage; // start_selected.png
+        private Image exitButtonImage;   // exit_button.png
+        private JButton soundButton; // 사운드 토글 버튼
+        
+        // 키보드 네비게이션을 위한 변수
+        private int selectedIndex = 0; // 0: START, 1: EXIT
+        
+        // 버튼 위치 상수
+        private final int BUTTON_X = 942; // START 버튼 X 좌표
+        private final int EXIT_BUTTON_X = 932; // EXIT 버튼 X 좌표 (왼쪽으로 이동하려면 값 감소)
+        private final int START_Y = 410;  // START 버튼 Y 좌표 (아래로 가려면 값 증가가)
+        private final int GAP = -5;        // START와 EXIT 사이 간격
+        
+        // 각 버튼의 Y 좌표 (이미지 위치 계산용)
+        private int[] buttonYPositions = new int[2];
 
         public GamePanel() {
             setLayout(null);
             setBackground(Color.BLACK);
-
-            // 애니메이션 타이머 (기존 로직 유지)
-            animationTimer = new Timer(30, new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    if (titleOpacity < 1.0f) {
-                        titleOpacity = Math.min(1.0f, titleOpacity + 0.02f);
-                    }
-                    if (titleOpacity > 0.5f && buttonOpacity < 1.0f) {
-                        buttonOpacity = Math.min(1.0f, buttonOpacity + 0.03f);
-                    }
-                    if (buttonOpacity > 0.5f && textOpacity < 1.0f) {
-                        textOpacity = Math.min(1.0f, textOpacity + 0.02f);
-                    }
-
-                    repaint();
-
-                    if (titleOpacity >= 1.0f && buttonOpacity >= 1.0f && textOpacity >= 1.0f) {
-                        animationTimer.stop();
-                    }
-                }
-            });
-            animationTimer.start();
-            if (!isMuted) SoundManager.playLoop("start", 0.3f); // 사운드 토글 버튼 soundButton = createSoundButton();
-
-            // 사운드 토글 버튼
+            setFocusable(true); // 키 입력을 받기 위해 필수
+            addKeyListener(this);
+            
+            if (!isMuted) SoundManager.playLoop("start", 0.3f);
+            
+            // 사운드 토글 버튼 (작게)
             soundButton = createSoundButton();
-            soundButton.setBounds(1200, 20, 50, 50);
+            soundButton.setBounds(1200, 20, 30, 30); // 50x50에서 30x30으로 작게
             add(soundButton);
-
-            // 게임 시작 버튼
-            startButton = createStartButton();
-            startButton.setBounds(850, 380, 200, 50);
-            add(startButton);
-        }
-
-        public void stopAnimation() {
-            if (animationTimer != null && animationTimer.isRunning()) {
-                animationTimer.stop();
+            
+            // 배경 이미지 로드
+            try {
+                backgroundImage = ImageIO.read(new File("images/elevator_bg.png"));
+            } catch (IOException e) {
+                System.out.println("elevator_bg.png 로드 실패: " + e.getMessage());
+                backgroundImage = null;
             }
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            Graphics2D g2d = (Graphics2D) g;
-            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-            // 배경 이미지 (메뉴)
-            if (backgroundImage != null) {
-                g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-                // 어두운 오버레이
-                g2d.setColor(new Color(0, 0, 0, 80));
-                g2d.fillRect(0, 0, getWidth(), getHeight());
-            } else {
-                // 배경 이미지가 없을 경우 그라데이션 배경
-                GradientPaint gradient = new GradientPaint(
-                        0, 0, new Color(20, 0, 0),
-                        0, getHeight(), new Color(0, 0, 0)
-                );
-                g2d.setPaint(gradient);
-                g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // START 버튼 이미지 로드
+            try {
+                startButtonImage = ImageIO.read(new File("images/start_selected.png"));
+            } catch (IOException e) {
+                System.out.println("start_selected.png 로드 실패: " + e.getMessage());
+                startButtonImage = null;
             }
-
-            // 제목/부제/하단/스캔라인 (원본 로직 유지)
-            drawTitle(g2d);
-            drawSubtitle(g2d);
-            drawFooterText(g2d);
-            drawScanlines(g2d);
+            
+            // EXIT 버튼 이미지 로드
+            try {
+                exitButtonImage = ImageIO.read(new File("images/exit_button.png"));
+            } catch (IOException e) {
+                System.out.println("exit_button.png 로드 실패: " + e.getMessage());
+                exitButtonImage = null;
+            }
+            
+            // 버튼 Y 좌표 저장
+            if (startButtonImage != null) {
+                buttonYPositions[0] = START_Y + startButtonImage.getHeight(null) / 2;
+            }
+            if (exitButtonImage != null) {
+                buttonYPositions[1] = START_Y + (startButtonImage != null ? startButtonImage.getHeight(null) : 0) + GAP + exitButtonImage.getHeight(null) / 2;
+            }
         }
         
-
-        private void drawTitle(Graphics2D g2d) {
-            int x = 850;
-            int y = 220;
-            Font titleFont = new Font("Impact", Font.BOLD, 48);
-            g2d.setFont(titleFont);
-
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, titleOpacity * 0.4f));
-            g2d.setColor(RED_DARK);
-            g2d.drawString("NO NEXT", x - 2, y - 2);
-            g2d.drawString("FLOOR", x - 2, y + 48 - 2);
-
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, titleOpacity * 0.3f));
-            g2d.setColor(RED_LIGHT);
-            g2d.drawString("NO NEXT", x + 2, y + 2);
-            g2d.drawString("FLOOR", x + 2, y + 48 + 2);
-
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, titleOpacity));
-            g2d.setStroke(new BasicStroke(3));
-            g2d.setColor(Color.BLACK);
-            FontMetrics fm = g2d.getFontMetrics();
-            drawOutlineText(g2d, "NO NEXT", x, y, fm);
-            drawOutlineText(g2d, "FLOOR", x, y + 48, fm);
-
-            g2d.setColor(RED_PRIMARY);
-            g2d.drawString("NO NEXT", x, y);
-            g2d.drawString("FLOOR", x, y + 48);
-
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, titleOpacity));
-            GradientPaint lineGradient = new GradientPaint(
-                x, y + 60, RED_PRIMARY,
-                x + 280, y + 60, new Color(255, 0, 0, 0)
-            );
-            g2d.setPaint(lineGradient);
-            g2d.fillRect(x, y + 60, 280, 2);
-
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-        }
-
-        private void drawOutlineText(Graphics2D g2d, String text, int x, int y, FontMetrics fm) {
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx != 0 || dy != 0) {
-                        g2d.drawString(text, x + dx, y + dy);
-                    }
-                }
-            }
-        }
-
-        private void drawSubtitle(Graphics2D g2d) {
-            int x = 850;
-            int y = 320;
-            Font subtitleFont = new Font("Malgun Gothic", Font.PLAIN, 18);
-            g2d.setFont(subtitleFont);
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, titleOpacity));
-            g2d.setColor(new Color(255, 200, 200));
-            g2d.drawString("내리실 층은 없습니다.", x, y);
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-        }
-
-        private void drawFooterText(Graphics2D g2d) {
-            int x = 850;
-            int y = 480;
-            Font footerFont = new Font("Chiller", Font.PLAIN, 20);
-            g2d.setFont(footerFont);
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, textOpacity * 1.0f));
-            g2d.setColor(new Color(255, 200, 200));
-            g2d.drawString("THERE IS NO WAY UP", x, y);
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-        }
-
-        private void drawScanlines(Graphics2D g2d) {
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.05f));
-            g2d.setColor(RED_PRIMARY);
-            for (int i = 0; i < getHeight(); i += 4) {
-                g2d.drawLine(0, i, getWidth(), i);
-            }
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-        }
-        
-
         private JButton createSoundButton() {
             JButton button = new JButton() {
                 @Override
@@ -255,27 +154,27 @@ public class NoNextFloorGame extends JFrame {
                     g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                     // 배경
-                    g2d.setColor(BLACK_TRANSPARENT);
+                    g2d.setColor(new Color(0, 0, 0, 150));
                     g2d.fillRect(0, 0, getWidth(), getHeight());
 
                     // 테두리
                     g2d.setColor(new Color(255, 0, 0, 100));
-                    g2d.setStroke(new BasicStroke(2));
-                    g2d.drawRect(1, 1, getWidth() - 2, getHeight() - 2);
+                    g2d.setStroke(new BasicStroke(1));
+                    g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
 
-                    // 아이콘 (간단한 스피커)
+                    // 아이콘 (작게)
                     g2d.setColor(new Color(255, 100, 100));
                     if (isMuted) {
-                        // X 표시
-                        g2d.drawLine(15, 15, 35, 35);
-                        g2d.drawLine(35, 15, 15, 35);
+                        // X 표시 (작게)
+                        g2d.drawLine(8, 8, 22, 22);
+                        g2d.drawLine(22, 8, 8, 22);
                     } else {
-                        // 스피커 아이콘
-                        int[] xPoints = {15, 25, 25, 15};
-                        int[] yPoints = {20, 15, 35, 30};
+                        // 스피커 아이콘 (작게)
+                        int[] xPoints = {8, 13, 13, 8};
+                        int[] yPoints = {12, 10, 20, 18};
                         g2d.fillPolygon(xPoints, yPoints, 4);
-                        g2d.drawArc(25, 18, 8, 14, -30, 60);
-                        g2d.drawArc(28, 15, 12, 20, -30, 60);
+                        g2d.drawArc(13, 11, 4, 7, -30, 60);
+                        g2d.drawArc(14, 9, 6, 10, -30, 60);
                     }
                 }
             };
@@ -288,7 +187,7 @@ public class NoNextFloorGame extends JFrame {
             button.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
-                    button.setBorder(BorderFactory.createLineBorder(new Color(255, 0, 0, 200), 2));
+                    button.setBorder(BorderFactory.createLineBorder(new Color(255, 0, 0, 200), 1));
                 }
 
                 @Override
@@ -299,104 +198,94 @@ public class NoNextFloorGame extends JFrame {
 
             button.addActionListener(e -> {
                 isMuted = !isMuted;
-                if (isMuted){ SoundManager.stop("start"); } else { SoundManager.playLoop("start", 0.3f); }
+                if (isMuted) {
+                    SoundManager.stop("start");
+                } else {
+                    SoundManager.playLoop("start", 0.3f);
+                }
                 button.repaint();
             });
 
             return button;
         }
 
-        private JButton createStartButton() {
-            JButton button = new JButton() {
-                private boolean isHovered = false;
+        public void stopAnimation() {
+            // 애니메이션 타이머가 없으므로 빈 메서드
+        }
 
-                @Override
-                protected void paintComponent(Graphics g) {
-                    Graphics2D g2d = (Graphics2D) g;
-                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                    // 배경
-                    if (isHovered) {
-                        g2d.setColor(new Color(200, 0, 0, 220));
-                    } else {
-                        g2d.setColor(new Color(180, 0, 0, 200));
-                    }
-                    g2d.fillRect(0, 0, getWidth(), getHeight());
-
-                    // 테두리
-                    g2d.setColor(new Color(255, 100, 100));
-                    g2d.setStroke(new BasicStroke(2));
-                    g2d.drawRect(1, 1, getWidth() - 2, getHeight() - 2);
-
-                    // Glow 효과 (hover 시)
-                    if (isHovered) {
-                        g2d.setColor(new Color(255, 0, 0, 50));
-                        g2d.setStroke(new BasicStroke(8));
-                        g2d.drawRect(-3, -3, getWidth() + 6, getHeight() + 6);
-                    }
-
-                    // 텍스트
-                    g2d.setColor(Color.WHITE);
-                    g2d.setFont(new Font("Malgun Gothic", Font.BOLD, 18));
-                    FontMetrics fm = g2d.getFontMetrics();
-                    String text = "▶ 게임 시작";
-                    int textWidth = fm.stringWidth(text);
-                    int textX = (getWidth() - textWidth) / 2;
-                    int textY = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
-
-                    // 텍스트 그림자
-                    g2d.setColor(Color.BLACK);
-                    g2d.drawString(text, textX + 2, textY + 2);
-
-                    g2d.setColor(Color.WHITE);
-                    g2d.drawString(text, textX, textY);
-                }
-            };
-
-            button.setContentAreaFilled(false);
-            button.setBorderPainted(false);
-            button.setFocusPainted(false);
-            button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            button.setOpaque(false);
-
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseEntered(MouseEvent e) {
-                    ((JButton) e.getSource()).putClientProperty("isHovered", true);
-                    button.repaint();
-                }
-
-                @Override
-                public void mouseExited(MouseEvent e) {
-                    ((JButton) e.getSource()).putClientProperty("isHovered", false);
-                    button.repaint();
-                }
-
-                @Override
-                public void mousePressed(MouseEvent e) {
-                    Rectangle bounds = button.getBounds();
-                    button.setBounds(bounds.x + 2, bounds.y + 2, bounds.width - 4, bounds.height - 4);
-                }
-
-                @Override
-                public void mouseReleased(MouseEvent e) {
-                    Rectangle bounds = button.getBounds();
-                    button.setBounds(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4);
-                }
-            });
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
             
-
-         // 메뉴의 "게임 시작" 버튼 -> 조작 화면(HowToPlay)으로 진입
-            button.addActionListener(e -> {
-                // 1. 메인 화면 BGM 정지
+            // 배경 이미지
+            if (backgroundImage != null) {
+                g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+                // 어두운 오버레이
+                g2d.setColor(new Color(0, 0, 0, 80));
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+            } else {
+                // 배경 이미지가 없을 경우 검은 배경
+                g2d.setColor(Color.BLACK);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+            }
+            
+            // 선택된 버튼 이미지 그리기
+            if (selectedIndex == 0 && startButtonImage != null) {
+                // START 버튼이 선택된 경우
+                int startY = START_Y;
+                int w = (int)(startButtonImage.getWidth(null) * 0.65);
+                int h = (int)(startButtonImage.getHeight(null) * 0.65);
+                g2d.drawImage(startButtonImage, BUTTON_X, startY, w, h, null);
+            } else if (selectedIndex == 1 && exitButtonImage != null) {
+                // EXIT 버튼이 선택된 경우
+                int startScaledH = startButtonImage != null ? (int)(startButtonImage.getHeight(null) * 0.7) : 0;
+                int exitY = START_Y + startScaledH + GAP;
+                int w = (int)(exitButtonImage.getWidth(null) * 0.65);
+                int h = (int)(exitButtonImage.getHeight(null) * 0.65);
+                g2d.drawImage(exitButtonImage, EXIT_BUTTON_X, exitY, w, h, null);
+            }
+        }
+        
+        // 키보드 입력 처리
+        @Override
+        public void keyPressed(KeyEvent e) {
+            int keyCode = e.getKeyCode();
+            
+            // W 키 또는 위쪽 화살표: 위로 이동
+            if (keyCode == KeyEvent.VK_W || keyCode == KeyEvent.VK_UP) {
+                selectedIndex--;
+                if (selectedIndex < 0) selectedIndex = 1; // 순환 (맨 위에서 맨 아래로)
+                repaint();
+            }
+            // S 키 또는 아래쪽 화살표: 아래로 이동
+            else if (keyCode == KeyEvent.VK_S || keyCode == KeyEvent.VK_DOWN) {
+                selectedIndex++;
+                if (selectedIndex > 1) selectedIndex = 0; // 순환 (맨 아래에서 맨 위로)
+                repaint();
+            }
+            // 스페이스바: 선택된 버튼 실행
+            else if (keyCode == KeyEvent.VK_SPACE) {
+                executeSelectedButton();
+            }
+        }
+        
+        @Override
+        public void keyReleased(KeyEvent e) {}
+        
+        @Override
+        public void keyTyped(KeyEvent e) {}
+        
+        // 선택된 버튼 실행
+        private void executeSelectedButton() {
+            if (selectedIndex == 0) {
+                // START 버튼: 게임 시작
                 SoundManager.stop("start");
-                
-                
-                // 2. 💡 showStageIntro(1) 대신 showHowToPlay() 호출로 변경
-                showHowToPlay(); // 👈 조작 화면으로 먼저 진입합니다.
-            });
-
-            return button;
+                showHowToPlay();
+            } else if (selectedIndex == 1) {
+                // EXIT 버튼: 게임 종료
+                System.exit(0);
+            }
         }
     }
     
@@ -406,13 +295,21 @@ public class NoNextFloorGame extends JFrame {
     	private NoNextFloorGame mainGame;
     	private boolean isGameOver = false;
     	private Image gameOverImage;
-    	private Rectangle btnYesRect = new Rectangle(500, 400, 120, 50);
-    	private Rectangle btnNoRect = new Rectangle(650, 400, 120, 50);
+    	private Image arrowImage;
+    	private int gameOverSelection = 0; // 0: YES, 1: NO
+    	private long gameOverStartTime = 0; // 게임오버 시작 시간 (페이드인용)
+    	private final long GAMEOVER_FADEIN_DURATION = 800; // 페이드인 지속 시간 (밀리초, 0.8초)
+    	private javax.swing.Timer gameOverFadeTimer; // 페이드인 애니메이션용 타이머
+    	
+    	// 게임오버 버튼 위치 (배경 이미지의 YES/NO 버튼 위치 기준)
+    	private final int GAMEOVER_YES_X = 450;
+    	private final int GAMEOVER_NO_X = 930;
+    	private final int GAMEOVER_BUTTON_Y = 500;
+    	private final int GAMEOVER_ARROW_OFFSET_X = -130; // 버튼 왼쪽으로부터의 거리
     	
 
 
     	// 무기 시스템
-    	private Rectangle lastCollidedWall = null;
     	private static final int WEAPON_PISTOL = 0;
     	private static final int WEAPON_SHOTGUN = 1;
     	private int currentWeapon = WEAPON_PISTOL;
@@ -441,7 +338,6 @@ public class NoNextFloorGame extends JFrame {
         private Thread gameThread;
         private boolean isRunning;
         private long lastShootTime = 0;
-        private final long shootCooldown = 200_000_000L; // 0.2초
         private Image fullHeartImage;
         private Image uiPlayerIcon;
         private Image uiZombieIcon;
@@ -451,6 +347,12 @@ public class NoNextFloorGame extends JFrame {
         private OptionsPanel optionsPanel;  // options 패널 참조
         private BossZombie bossZombie;
         private int visionRadius = 150; // 주인공 주변 밝게 보이는 범위
+
+        // 키 입력 상태 추적 변수 (매끄러운 이동을 위해 추가)
+        private boolean leftPressed = false;
+        private boolean rightPressed = false;
+        private boolean upPressed = false;
+        private boolean downPressed = false;
 
      // 2F Key 시스템
         private boolean keySpawned = false;
@@ -479,11 +381,6 @@ public class NoNextFloorGame extends JFrame {
             this.stageForThisPanel = stage;
             loadTelevisionImage();
             loadUIResources();
-
-            SoundManager.stop("start"); // 메뉴 BGM 정지
-
-            // 👇 [수정] BGM 재생 로직 전체를 if 블록 { } 안에 묶습니다.
-         // IngamePanel 생성자 내부 (수정된 부분)
 
             SoundManager.stop("start"); // 메뉴 BGM 정지
 
@@ -521,8 +418,6 @@ public class NoNextFloorGame extends JFrame {
                 }
             } 
             // 👆 if 블록 닫힘. (생성자는 아직 닫히지 않았습니다.)
-// ...
-            // 👆 if 블록 닫힘. (생성자는 아직 닫히지 않았습니다.)
             
             // 이제 setFocusable(true);가 생성자 내부에 위치하게 됩니다.
             setFocusable(true);
@@ -537,73 +432,8 @@ public class NoNextFloorGame extends JFrame {
             	    if (!mainGame.isMuted()) SoundManager.play("button", 1.0f);
 
             	    if (isGameOver) {
-            	        if (btnYesRect.contains(mx, my)) {
-            	            // YES → 현재 스테이지에서 부활
-            	            isGameOver = false;
-            	            player.hp = 3;  // 초기 체력으로 복원
-            	            bullets.clear();
-            	            zombies.clear();
-
-            	            // 좀비 다시 스폰 (스테이지 초기화)
-            	            int idx = stageForThisPanel - 1;
-            	            if (idx >= 0 && idx < stageZombies.length) {
-            	                for (int[] pos : stageZombies[idx]) {
-            	                    zombies.add(new Zombie(pos[0], pos[1]));
-            	                }
-            	            }
-            	            if(stageForThisPanel == 3 && bossZombie != null) {
-            	                bossZombie = new BossZombie(800, 400);
-            	            }
-
-            	            lastShootTime = 0;
-            	            isRunning = true;
-            	            gameThread = new Thread(IngamePanel.this); // IngamePanel의 run() 사용
-            	            gameThread.start();
-            	            SoundManager.stop("gameover"); 
-            	            if (!mainGame.isMuted())
-            	            { 
-                                // 🌟 [수정된 부분]: SoundManager.playLoop("bgm", 0.2f); 라인만 삭제 🌟
-            	                switch(stageForThisPanel) 
-            	                { 
-            	                    case 1:
-            	                        SoundManager.playLoop("game_bg", 0.15f);
-            	                        break;
-            	                    case 2:
-            	                        SoundManager.playLoop("game_bg2", 0.15f);
-            	                        break;
-            	                    case 3:
-            	                        SoundManager.playLoop("game_bg3", 0.15f);
-            	                        break;
-            	                } 
-            	                switch(stageForThisPanel) { 
-            	                    case 1:
-            	                        SoundManager.playLoop("zombie1", 0.2f);
-            	                        break;
-            	                    case 2:
-            	                    case 3:
-            	                        SoundManager.playLoop("zombie23", 0.2f);
-            	                        break;
-            	                } 
-            	            }
-            	            
-            	            repaint();
-            	            return;
-            	        }
-
-            	        if (btnNoRect.contains(mx, my)) {
-            	        
-            	            // NO → 메인 메뉴로 돌아가기
-            	        	SoundManager.stop("gameover"); SoundManager.stop("bgm"); SoundManager.stop("game_bg"); SoundManager.stop("game_bg2"); SoundManager.stop("game_bg3"); SoundManager.stop("zombie1"); SoundManager.stop("zombie23");
-            	            NoNextFloorGame.this.remove(IngamePanel.this);
-            	            currentIngamePanel = null;
-
-            	            NoNextFloorGame.this.gamePanel = new GamePanel();
-            	            NoNextFloorGame.this.add(gamePanel);
-            	            gamePanel.requestFocusInWindow();
-            	            NoNextFloorGame.this.revalidate();
-            	            NoNextFloorGame.this.repaint();
-            	            return;
-            	        }
+            	        // 게임오버 상태에서는 클릭 이벤트 무시
+            	        return;
             	    }
 
             	    // 게임 중 발사 처리 (기존 코드 유지)
@@ -662,6 +492,12 @@ public class NoNextFloorGame extends JFrame {
                 gameOverImage = ImageIO.read(new File("images/gameover.png"));
             } catch (Exception e) {
                 System.out.println("gameover.png 로드 실패: " + e.getMessage());
+            }
+            try {
+                arrowImage = ImageIO.read(new File("images/arrow.png"));
+            } catch (Exception e) {
+                System.out.println("arrow.png 로드 실패: " + e.getMessage());
+                arrowImage = null;
             }
 
 
@@ -736,10 +572,116 @@ public class NoNextFloorGame extends JFrame {
         private void onPlayerDied() {
             isRunning = false;
             isGameOver = true;
+            gameOverStartTime = System.currentTimeMillis(); // 페이드인 시작 시간 기록
+            gameOverSelection = 0; // 기본 선택은 YES
             SoundManager.stop("bgm"); SoundManager.stop("game_bg"); SoundManager.stop("game_bg2"); SoundManager.stop("game_bg3"); SoundManager.stop("zombie1"); SoundManager.stop("zombie23"); if (!mainGame.isMuted()) SoundManager.play("gameover", 1.0f);
 
-            // 버튼 클릭을 받기 위해 포커스 가져오기
+            // 페이드인 애니메이션을 위한 타이머 시작 (60 FPS)
+            if (gameOverFadeTimer != null) {
+                gameOverFadeTimer.stop();
+            }
+            gameOverFadeTimer = new javax.swing.Timer(16, e -> {
+                long elapsed = System.currentTimeMillis() - gameOverStartTime;
+                if (elapsed < GAMEOVER_FADEIN_DURATION) {
+                    repaint(); // 페이드인 중일 때 계속 repaint 호출
+                } else {
+                    repaint(); // 마지막 한 번 더 호출
+                    if (gameOverFadeTimer != null) {
+                        gameOverFadeTimer.stop(); // 페이드인 완료 후 타이머 정지
+                    }
+                }
+            });
+            gameOverFadeTimer.start();
+
+            // 키보드 입력을 받기 위해 포커스 가져오기
             requestFocusInWindow();
+        }
+        
+        // 게임오버 선택 실행 메서드
+        private void executeGameOverSelection() {
+            if (!isGameOver) return;
+            
+            if (gameOverSelection == 0) {
+                // YES → 현재 스테이지 시작 지점에서 다시 시작
+                isGameOver = false;
+                player.hp = 3;  // 초기 체력으로 복원
+                bullets.clear();
+                zombies.clear();
+
+                // 플레이어 위치를 스테이지 시작 지점으로 리셋
+                switch(stageForThisPanel) {
+                    case 1: 
+                        player.x = 490; 
+                        player.y = 520; 
+                        break;
+                    case 2: 
+                        player.x = 190; 
+                        player.y = 180; 
+                        break;
+                    case 3: 
+                        player.x = 315; 
+                        player.y = 70; 
+                        break;
+                }
+                player.angle = 0; // 각도도 초기화
+
+                // 좀비 다시 스폰 (스테이지 초기화)
+                int idx = stageForThisPanel - 1;
+                if (idx >= 0 && idx < stageZombies.length) {
+                    for (int[] pos : stageZombies[idx]) {
+                        zombies.add(new Zombie(pos[0], pos[1]));
+                    }
+                }
+                if(stageForThisPanel == 3) {
+                    bossZombie = new BossZombie(950, 200);  // 원래 시작 위치로
+                }
+
+                lastShootTime = 0;
+                isRunning = true;
+                gameThread = new Thread(IngamePanel.this);
+                gameThread.start();
+                SoundManager.stop("gameover"); 
+                if (!mainGame.isMuted()) { 
+                    switch(stageForThisPanel) { 
+                        case 1:
+                            SoundManager.playLoop("game_bg", 0.15f);
+                            break;
+                        case 2:
+                            SoundManager.playLoop("game_bg2", 0.15f);
+                            break;
+                        case 3:
+                            SoundManager.playLoop("game_bg3", 0.15f);
+                            break;
+                    } 
+                    switch(stageForThisPanel) { 
+                        case 1:
+                            SoundManager.playLoop("zombie1", 0.2f);
+                            break;
+                        case 2:
+                        case 3:
+                            SoundManager.playLoop("zombie23", 0.2f);
+                            break;
+                    } 
+                }
+                repaint();
+            } else {
+                // NO → 메인 메뉴로 돌아가기
+                SoundManager.stop("gameover"); 
+                SoundManager.stop("bgm"); 
+                SoundManager.stop("game_bg"); 
+                SoundManager.stop("game_bg2"); 
+                SoundManager.stop("game_bg3"); 
+                SoundManager.stop("zombie1"); 
+                SoundManager.stop("zombie23");
+                NoNextFloorGame.this.remove(IngamePanel.this);
+                currentIngamePanel = null;
+
+                NoNextFloorGame.this.gamePanel = new GamePanel();
+                NoNextFloorGame.this.add(gamePanel);
+                gamePanel.requestFocusInWindow();
+                NoNextFloorGame.this.revalidate();
+                NoNextFloorGame.this.repaint();
+            }
         }
         private void loadTelevisionImage() { 
             try {
@@ -755,12 +697,21 @@ public class NoNextFloorGame extends JFrame {
             isRunning = false;
 
             SwingUtilities.invokeLater(() -> {
+                // 홈 버튼 숨기기
+                if (homeButton != null) {
+                    homeButton.setVisible(false);
+                }
+                
                 optionsPanel = new OptionsPanel(
                     isMuted,
                     // 게임 재개
                     () -> {
                         remove(optionsPanel);
                         optionsPanel = null;
+                        // 홈 버튼 다시 보이기
+                        if (homeButton != null) {
+                            homeButton.setVisible(true);
+                        }
                         requestFocusInWindow();
                         isRunning = true;
                         gameThread = new Thread(this);
@@ -802,9 +753,6 @@ public class NoNextFloorGame extends JFrame {
         }
      // showOptions() 메서드와 addHomeButton() 메서드 사이에 위치하거나,
      // IngamePanel의 모든 필드, 생성자, 그리고 기본 메서드(run, paintComponent 등)가 끝난 후 추가합니다.
-
-     // showOptions() 메서드와 addHomeButton() 메서드 사이에 위치하거나,
-        // IngamePanel의 모든 필드, 생성자, 그리고 기본 메서드(run, paintComponent 등)가 끝난 후 추가합니다.
 
         /* ===================== shootBullet (마우스 클릭 발사 로직) ===================== */
         private void shootBullet(int mx, int my) {
@@ -895,9 +843,7 @@ public class NoNextFloorGame extends JFrame {
         }
 
         /* ===================== revivePlayer (부활 로직 - BGM 재시작) ===================== */
-        // 이 메서드는 btnYesRect 클릭 시 이미 로직이 구현되었지만, 필요 시 정의해 둡니다.
-     // IngamePanel.java 내 revivePlayer() 메서드 (기존)
-     // IngamePanel.java 내 revivePlayer() 메서드 (수정됨)
+        // 게임오버 버튼 제거로 인해 현재 사용되지 않습니다.
         private void revivePlayer() { 
             // *** 부활 게임 로직 (체력, 위치, 쿨다운 등 초기화) ***
             
@@ -940,7 +886,11 @@ public class NoNextFloorGame extends JFrame {
            private void addHomeButton() {
                homeButton = new JButton();
                try {
-                   ImageIcon icon = new ImageIcon("images/home.png");
+                   ImageIcon originalIcon = new ImageIcon("images/home.png");
+                   // 이미지 크기 조정 (원하는 크기로 변경 가능)
+                   Image img = originalIcon.getImage();
+                   Image scaledImg = img.getScaledInstance(30, 30, Image.SCALE_SMOOTH); // 30x30으로 축소
+                   ImageIcon icon = new ImageIcon(scaledImg);
                    homeButton.setIcon(icon);
                } catch (Exception e) {
                    System.out.println("home.png 없음");
@@ -956,7 +906,7 @@ public class NoNextFloorGame extends JFrame {
 
                // 패널 크기가 결정된 후 위치 지정
                SwingUtilities.invokeLater(() -> {
-                   homeButton.setBounds(getWidth() - 70, 20, 50, 50);
+                   homeButton.setBounds(getWidth() - 70, 20, 30, 30); // 50x50에서 30x30으로 변경
                    homeButton.repaint();
                    int slotSize = 48;
                    int margin = 20;
@@ -1029,7 +979,7 @@ public class NoNextFloorGame extends JFrame {
                    }
                }
 
-               // 배경 그리기
+               // 배경 그리기 (게임오버일 때도 페이드 효과를 위해 배경 먼저 그림)
                if (gameBackground != null) {
                    if (isFlashingOffTime) {
                        // '꺼짐' 타이밍 (깜빡임 ON/OFF가 OFF인 경우)에는 television.png를 그립니다.
@@ -1056,29 +1006,50 @@ public class NoNextFloorGame extends JFrame {
                // }
                
                if (isGameOver) {
-                   // 1️⃣ gameOverImage를 화면 전체로 확대
-                   if (gameOverImage != null) {
-                       g.drawImage(gameOverImage, 0, 0, getWidth(), getHeight(), null);
+                   // 즉시 검은 화면으로 전환
+                   g2d.setColor(Color.BLACK);
+                   g2d.fillRect(0, 0, getWidth(), getHeight());
+                   
+                   // 페이드인 효과 계산
+                   if (gameOverStartTime == 0) {
+                       gameOverStartTime = System.currentTimeMillis(); // 안전 체크: 시작 시간이 없으면 지금으로 설정
                    }
-           // ... (나머지 로직 유지) ...
-           
-
-                   // 2️⃣ YES 버튼 (배경 흰색)
-                   g.setColor(Color.WHITE);
-                   g.fillRect(btnYesRect.x, btnYesRect.y, btnYesRect.width, btnYesRect.height);
-                   g.setColor(Color.BLACK);
-                   g.setFont(new Font("Arial", Font.BOLD, 30));
-                   g.drawString("YES", btnYesRect.x + 30, btnYesRect.y + 35);
-
-                   // 3️⃣ NO 버튼 (배경 흰색)
-                   g.setColor(Color.WHITE);
-                   g.fillRect(btnNoRect.x, btnNoRect.y, btnNoRect.width, btnNoRect.height);
-                   g.setColor(Color.BLACK);
-                   g.drawString("NO", btnNoRect.x + 40, btnNoRect.y + 35);
+                   long currentTime = System.currentTimeMillis();
+                   long elapsed = currentTime - gameOverStartTime;
+                   float fadeInProgress = Math.min(1.0f, (float)elapsed / GAMEOVER_FADEIN_DURATION); // 0.0 ~ 1.0
+                   
+                   // 게임오버 이미지를 알파값에 따라 페이드인으로 그리기
+                   if (gameOverImage != null) {
+                       // Composite를 사용하여 알파 블렌딩
+                       AlphaComposite ac = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fadeInProgress);
+                       g2d.setComposite(ac);
+                       g2d.drawImage(gameOverImage, 0, 0, getWidth(), getHeight(), null);
+                       g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f)); // 원래대로 복원
+                   }
+                   
+                   // 페이드인 완료 후에만 화살표 표시
+                   if (fadeInProgress >= 1.0f) {
+                       // 2️⃣ 화살표 그리기 (YES/NO 버튼 왼쪽에 위치)
+                       int arrowX, arrowY;
+                       if (gameOverSelection == 0) {
+                           // YES 선택 - 화살표를 YES 버튼 왼쪽에
+                           arrowX = GAMEOVER_YES_X + GAMEOVER_ARROW_OFFSET_X;
+                           arrowY = GAMEOVER_BUTTON_Y;
+                       } else {
+                           // NO 선택 - 화살표를 NO 버튼 왼쪽에
+                           arrowX = GAMEOVER_NO_X + GAMEOVER_ARROW_OFFSET_X;
+                           arrowY = GAMEOVER_BUTTON_Y;
+                       }
+                       
+                       if (arrowImage != null) {
+                           g2d.drawImage(arrowImage, arrowX, arrowY, null);
+                       }
+                   }
                    return;
                }
            
-               // 우측 텍스트 추가
+               // 우측 텍스트 추가 (주석 처리)
+               /*
                int rightX = 900;
                int startY = 200;
                int lineSpacing = 40;
@@ -1113,6 +1084,7 @@ public class NoNextFloorGame extends JFrame {
                default:
                    break;
            } 
+           */
                // 플레이어 그리기
                if (player != null) {
                    player.draw(g);
@@ -1299,48 +1271,60 @@ public class NoNextFloorGame extends JFrame {
            @Override public void keyTyped(KeyEvent e) {}
            @Override
            public void keyPressed(KeyEvent e) {
-               if (player == null) return;
                int keyCode = e.getKeyCode();
                
-               int newX = player.x;
-               int newY = player.y;
-               // Player 클래스에 public int speed; 변수가 있다고 가정
-               int speed = player.speed; 
-
-               // 1. 다음 이동 위치 계산
-               if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_A) {
-                   newX -= speed;
-                   player.angle = Math.PI; // 방향 설정
-               } else if (keyCode == KeyEvent.VK_RIGHT || keyCode == KeyEvent.VK_D) {
-                   newX += speed;
-                   player.angle = 0; // 방향 설정
-               } else if (keyCode == KeyEvent.VK_UP || keyCode == KeyEvent.VK_W) {
-                   newY -= speed;
-                   player.angle = -Math.PI / 2.0; // 방향 설정
-               } else if (keyCode == KeyEvent.VK_DOWN || keyCode == KeyEvent.VK_S) {
-                   newY += speed;
-                   player.angle = Math.PI / 2.0; // 방향 설정
-               }
-               
-
-               // 2. 다음 위치의 충돌 박스 생성 (Player 클래스의 크기 사용)
-               // *주의: Player 클래스에 playerWidth, playerHeight가 정의되어 있어야 합니다.*
-               Rectangle nextPos = new Rectangle(newX, newY, player.playerWidth, player.playerHeight);
-
-               // 3. 📌 충돌 체크: 충돌하지 않을 때만 위치 업데이트
-               if (!checkCollision(nextPos)) {
-                   player.x = newX;
-                   player.y = newY;
-               }
-               if (player.hp <= 0) {
-                   onPlayerDied();
+               // 게임오버 상태에서 키 입력 처리
+               if (isGameOver) {
+                   if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_A) {
+                       gameOverSelection = 0; // YES 선택
+                       repaint();
+                       return;
+                   } else if (keyCode == KeyEvent.VK_RIGHT || keyCode == KeyEvent.VK_D) {
+                       gameOverSelection = 1; // NO 선택
+                       repaint();
+                       return;
+                   } else if (keyCode == KeyEvent.VK_SPACE) {
+                       // 스페이스바로 선택 실행
+                       executeGameOverSelection();
+                       return;
+                   }
                    return;
                }
                
-               // 4. 발사 키 처리
-               if (keyCode == KeyEvent.VK_SPACE) shootBulletForward();
+               if (player == null) return;
+               
+               // 키 상태 플래그 설정 (매끄러운 이동을 위해)
+               if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_A) {
+                   leftPressed = true;
+               } else if (keyCode == KeyEvent.VK_RIGHT || keyCode == KeyEvent.VK_D) {
+                   rightPressed = true;
+               } else if (keyCode == KeyEvent.VK_UP || keyCode == KeyEvent.VK_W) {
+                   upPressed = true;
+               } else if (keyCode == KeyEvent.VK_DOWN || keyCode == KeyEvent.VK_S) {
+                   downPressed = true;
+               }
+               
+               // 발사 키 처리
+               if (keyCode == KeyEvent.VK_SPACE) {
+                   shootBulletForward();
+               }
            }
-           @Override public void keyReleased(KeyEvent e) {}
+           @Override 
+           public void keyReleased(KeyEvent e) {
+               if (player == null) return;
+               int keyCode = e.getKeyCode();
+               
+               // 키 상태 플래그 해제
+               if (keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_A) {
+                   leftPressed = false;
+               } else if (keyCode == KeyEvent.VK_RIGHT || keyCode == KeyEvent.VK_D) {
+                   rightPressed = false;
+               } else if (keyCode == KeyEvent.VK_UP || keyCode == KeyEvent.VK_W) {
+                   upPressed = false;
+               } else if (keyCode == KeyEvent.VK_DOWN || keyCode == KeyEvent.VK_S) {
+                   downPressed = false;
+               }
+           }
 
            // 전방 총알 발사 (스페이스바)
            private void shootBulletForward() {
@@ -1486,16 +1470,16 @@ public class NoNextFloorGame extends JFrame {
 
         // 📌 6) 플레이어/좀비 충돌 체크 함수 (통합)
         private boolean checkCollision(Rectangle nextPos) {
-       	    lastCollidedWall = null;  // 매 프레임 초기화
-
-       	    for (Rectangle wall : wallRects) {
-       	        if (nextPos.intersects(wall)) {
-       	            lastCollidedWall = wall; // 어떤 벽에 닿았는지 기록
-       	            return true;
-       	        }
-       	    }
-       	    return false;
-       	}
+            // lastCollidedWall = null; 삭제
+            
+            for (Rectangle wall : wallRects) {
+                if (nextPos.intersects(wall)) {
+                    // lastCollidedWall = wall; 삭제
+                    return true;
+                }
+            }
+            return false;
+        }
 
 
 
@@ -1515,6 +1499,85 @@ public class NoNextFloorGame extends JFrame {
 
 
            public void updateGame() {
+               if (player == null || zombies == null) return;
+               
+               // =========================================================
+               // 0. 플레이어 이동 처리 (키 입력 상태 기반 - 매끄러운 이동)
+               // =========================================================
+               if (!isGameOver) {
+                   int newX = player.x;
+                   int newY = player.y;
+                   int speed = player.speed;
+                   boolean moved = false;
+                   
+                   // 방향별 이동 처리
+                   if (leftPressed) {
+                       newX -= speed;
+                       moved = true;
+                   }
+                   if (rightPressed) {
+                       newX += speed;
+                       moved = true;
+                   }
+                   if (upPressed) {
+                       newY -= speed;
+                       moved = true;
+                   }
+                   if (downPressed) {
+                       newY += speed;
+                       moved = true;
+                   }
+                   
+                   // 각도 즉시 변경
+                   if (moved) {
+                       if (leftPressed && !rightPressed) {
+                           if (upPressed && !downPressed) {
+                               player.angle = -Math.PI * 3.0 / 4.0; // 좌상
+                           } else if (downPressed && !upPressed) {
+                               player.angle = Math.PI * 3.0 / 4.0; // 좌하
+                           } else {
+                               player.angle = Math.PI; // 좌
+                           }
+                       } else if (rightPressed && !leftPressed) {
+                           if (upPressed && !downPressed) {
+                               player.angle = -Math.PI / 4.0; // 우상
+                           } else if (downPressed && !upPressed) {
+                               player.angle = Math.PI / 4.0; // 우하
+                           } else {
+                               player.angle = 0; // 우
+                           }
+                       } else if (upPressed && !downPressed) {
+                           player.angle = -Math.PI / 2.0; // 상
+                       } else if (downPressed && !upPressed) {
+                           player.angle = Math.PI / 2.0; // 하
+                       }
+                   }
+                   
+                   // 충돌 체크 후 위치 업데이트
+                   if (moved) {
+                       Rectangle nextPos = new Rectangle(newX, newY, player.playerWidth, player.playerHeight);
+                       if (!checkCollision(nextPos)) {
+                           player.x = newX;
+                           player.y = newY;
+                       } else {
+                           // 충돌 시 X, Y 각각 체크하여 부분 이동 허용 (대각선 이동 시)
+                           Rectangle nextXPos = new Rectangle(newX, player.y, player.playerWidth, player.playerHeight);
+                           Rectangle nextYPos = new Rectangle(player.x, newY, player.playerWidth, player.playerHeight);
+                           if (!checkCollision(nextXPos)) {
+                               player.x = newX;
+                           }
+                           if (!checkCollision(nextYPos)) {
+                               player.y = newY;
+                           }
+                       }
+                   }
+                   
+                   // 체력 체크
+                   if (player.hp <= 0 && !isGameOver) {
+                       onPlayerDied();
+                   }
+               }
+               
         	   if (stageForThisPanel == 3 && bossZombie != null) {
         	        
         		// 1. 일반 좀비 전멸 조건 확인
@@ -1550,7 +1613,6 @@ public class NoNextFloorGame extends JFrame {
         		        SoundManager.stop("zombie23");
         		    }
         		}
-               if (player == null || zombies == null) return;
 
                // =========================================================
                // 1. 총알 업데이트 및 제거 (+ 벽 충돌 기능 추가)
@@ -1789,24 +1851,7 @@ public class NoNextFloorGame extends JFrame {
                                 // repaint()를 두 번 호출할 필요는 없습니다. 아래쪽의 repaint()만 유지합니다.
                                 
                                 if (player.hp <= 0 && !isGameOver) {
-                                    isGameOver = true;
-                                    isRunning = false;   // 게임 스레드 정지
-
-                                    // 🌟 [핵심 수정]: 게임 오버 시 모든 BGM 정지 및 gameover.wav 재생 🌟
-                                    if (!mainGame.isMuted()) {
-                                        // 모든 인게임 BGM 정지 (배경음, 좀비 소리)
-                                        SoundManager.stop("game_bg");
-                                        SoundManager.stop("game_bg2");
-                                        SoundManager.stop("game_bg3");
-                                        SoundManager.stop("zombie1");
-                                        SoundManager.stop("zombie23");
-                                        SoundManager.stop("bgm"); 
-                                        
-                                        // gameover.wav 재생
-                                        SoundManager.stop("gameover"); // 혹시 재생 중이라면 멈추고
-                                        SoundManager.play("gameover", 1.0f); // 다시 재생
-                                    }
-                                    // ----------------------------------------------------------------------
+                                    onPlayerDied(); // 페이드인 타이머를 포함한 모든 게임오버 처리를 여기서 수행
                                 }
 
                                 repaint(); // 게임 상태 갱신 후 화면을 다시 그립니다.
@@ -1875,7 +1920,6 @@ public class NoNextFloorGame extends JFrame {
     }
 
     // 스테이지 클리어 후 처리: 다음 스테이지 로딩 혹은 최종 승리
- // 스테이지 클리어 후 처리: 다음 스테이지 로딩 혹은 최종 승리
     private void onStageCleared(int clearedStage) {
         if (clearedStage < MAX_STAGE) {
             int nextStage = clearedStage + 1;
@@ -1911,6 +1955,9 @@ public class NoNextFloorGame extends JFrame {
         // 3) 화면 갱신
         revalidate();
         repaint();
+        
+        // 4) 포커스 요청 (키 입력을 받기 위해)
+        howToPlayPanel.requestFocusInWindow();
     }
 
     // ===================== 엔딩 화면 표시 =====================
