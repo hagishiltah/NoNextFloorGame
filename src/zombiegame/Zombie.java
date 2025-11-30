@@ -1,10 +1,12 @@
 package zombiegame;
 
 import java.awt.*;
-import java.awt.geom.AffineTransform; // ★ 추가
+import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
+import java.util.ArrayList;
+import java.util.List; // 🌟 [필수] List 임포트 추가
 
 public class Zombie {
     public int x, y;
@@ -12,37 +14,36 @@ public class Zombie {
     public int maxHp;
     public int zombieWidth;
     public int zombieHeight;
-
-    private int speed;
-    private double scale = 0.1; // 크기 조절
-
-    private Image zombieImage;
-    private Image damagedImage;
-    private Image fullHeartImage;
-
-    private int CHASE_RADIUS = 800; // 추격 범위 (좀 넓게 잡음)
-    private long attackCooldown = 1_000_000_000L; // 1초
-    private long lastAttackTime = 0;
-
-    private boolean isDamaged = false;
-    private long damagedStartTime = 0;
-    private final long damagedDuration = 500;
-    
-    // ★ 추가: 좀비가 바라보는 각도
     public double angle; 
+
+    protected double speed;
+    protected double scale = 0.1; 
+    
+    protected Image zombieImage;
+    protected Image damagedImage;
+    protected Image fullHeartImage;
+
+    protected int CHASE_RADIUS = 800;
+    protected long attackCooldown = 1_000_000_000L;
+    protected long lastAttackTime = 0;
+
+    protected boolean isDamaged = false;
+    protected long damagedStartTime = 0;
+    protected final long damagedDuration = 500;
+    
+    // 🌟 [수정 1] ArrayList -> List로 변경 (더 넓은 범위 수용)
+    protected List<Rectangle> walls; 
 
     public Zombie(int startX, int startY) {
         this.x = startX;
         this.y = startY;
-        this.speed = 1; // 속도 조절
+        this.speed = 1; 
         this.hp = 3;
         this.maxHp = 3;
 
         try {
             zombieImage = ImageIO.read(new File("images/zombie.png"));
             damagedImage = ImageIO.read(new File("images/damaged_zombie.png"));
-            
-            // Java 21 호환: null 안전성 강화 및 이미지 크기 가져오기
             if (zombieImage != null) {
                 int originalWidth = zombieImage.getWidth(null);
                 int originalHeight = zombieImage.getHeight(null);
@@ -50,26 +51,40 @@ public class Zombie {
                     zombieWidth = (int) (originalWidth * scale);
                     zombieHeight = (int) (originalHeight * scale);
                 } else {
-                    // 이미지가 아직 로드되지 않은 경우 기본값 사용
-                    zombieWidth = 40;
-                    zombieHeight = 40;
+                    zombieWidth = 40; zombieHeight = 40;
                 }
             } else {
-                // 이미지 로드 실패 시 기본값 사용
-                zombieWidth = 40;
-                zombieHeight = 40;
+                zombieWidth = 40; zombieHeight = 40;
             }
-            
         } catch (IOException e) {
-            System.out.println("좀비 이미지 로드 실패: " + e.getMessage());
-            zombieWidth = 40;
-            zombieHeight = 40;
+            zombieWidth = 40; zombieHeight = 40;
         }
 
         try {
             fullHeartImage = ImageIO.read(new File("images/heart_full.png"));
         } catch (IOException e) {}
     }
+
+    // 🌟 [수정 2] 파라미터도 List로 변경 (여기가 핵심!)
+    // IngamePanel의 wallRects가 ArrayList든 List든 모두 받을 수 있게 됩니다.
+    public void setWalls(List<Rectangle> walls) {
+        this.walls = walls;
+    }
+
+    // 🌟 [수정 3] 충돌 체크 로직 (List도 for문 사용 가능)
+    protected boolean canMove(int nextX, int nextY) {
+        Rectangle nextPos = new Rectangle(nextX, nextY, zombieWidth, zombieHeight);
+        
+        // 벽 정보가 없으면 통과
+        if (walls == null) return true; 
+        
+        for (Rectangle wall : walls) {
+            if (nextPos.intersects(wall)) return false;
+        }
+        return true;
+    }
+
+    // ... (이하 takeDamage, draw, update 등 기존 코드 그대로 유지) ...
 
     public void takeDamage(int amount) {
         hp -= amount;
@@ -78,24 +93,18 @@ public class Zombie {
         damagedStartTime = System.currentTimeMillis();
     }
 
-    // ★ 수정됨: 회전하여 그리기
     public void draw(Graphics g) {
         if (isDamaged && System.currentTimeMillis() - damagedStartTime > damagedDuration) {
             isDamaged = false;
         }
 
         Image usingImage = isDamaged && damagedImage != null ? damagedImage : zombieImage;
-        
         Graphics2D g2d = (Graphics2D) g;
-        
-        // 현재 상태 저장
         AffineTransform old = g2d.getTransform(); 
         
-        // 좀비의 중심점
         int centerX = x + zombieWidth / 2;
         int centerY = y + zombieHeight / 2;
 
-        // 회전 적용
         g2d.rotate(angle, centerX, centerY);
 
         if (usingImage != null) {
@@ -104,18 +113,14 @@ public class Zombie {
             g.setColor(Color.GREEN);
             g.fillRect(x, y, zombieWidth, zombieHeight);
         }
-        
-        // 회전 복구 (체력바는 회전하면 안 되니까)
         g2d.setTransform(old);
-
         drawHearts(g);
     }
-
-    private void drawHearts(Graphics g) {
-        // 체력바 그리기 (기존 로직 유지)
+    
+    protected void drawHearts(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
         int heartSize = 12;
-        int heartX = x + (zombieWidth - (hp * 14)) / 2; // 중앙 정렬
+        int heartX = x + (zombieWidth - (hp * 14)) / 2; 
         int heartY = y - 15;
 
         for (int i = 0; i < hp; i++) {
@@ -128,23 +133,17 @@ public class Zombie {
         }
     }
 
-    // ★ 수정됨: 플레이어를 바라보는 각도 계산 및 이동
     public void update(Player player) {
         double distance = Math.hypot(player.x - x, player.y - y);
-        
-        // 플레이어를 바라보는 각도 계산 (항상 바라봄)
         int centerX = x + zombieWidth / 2;
         int centerY = y + zombieHeight / 2;
         int pCenterX = player.x + player.playerWidth / 2;
         int pCenterY = player.y + player.playerHeight / 2;
-        
         this.angle = Math.atan2(pCenterY - centerY, pCenterX - centerX);
 
-        // 추격 범위 내라면 이동
         if (distance < CHASE_RADIUS) {
             if (player.x > x) x += speed;
             else if (player.x < x) x -= speed;
-
             if (player.y > y) y += speed;
             else if (player.y < y) y -= speed;
         }

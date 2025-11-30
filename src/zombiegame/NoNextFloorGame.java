@@ -48,7 +48,7 @@ public class NoNextFloorGame extends JFrame {
         // stage 2: 5 마리
         { {400, 150}, {700, 180}, {400, 400}, {900, 420}, {800, 220} },
         // stage 3: 2 마리
-        { {300, 450},{500, 420} }
+        { {300, 350},{500, 420} }
     };
 
     // 생성자 (기본 스켈레톤 로직 유지)
@@ -204,6 +204,7 @@ public class NoNextFloorGame extends JFrame {
                     SoundManager.playLoop("start", 0.3f);
                 }
                 button.repaint();
+                GamePanel.this.requestFocusInWindow();
             });
 
             return button;
@@ -295,6 +296,7 @@ public class NoNextFloorGame extends JFrame {
     	private NoNextFloorGame mainGame;
     	private boolean isGameOver = false;
     	private Image gameOverImage;
+    	private boolean errrSoundPlayed = false; // 🌟 소리 재생 여부 체크용
     	private Image arrowImage;
     	private int gameOverSelection = 0; // 0: YES, 1: NO
     	private long gameOverStartTime = 0; // 게임오버 시작 시간 (페이드인용)
@@ -324,6 +326,7 @@ public class NoNextFloorGame extends JFrame {
     	private final long FLASH_INTERVAL = 500; // 0.2초마다 켜고 끔
     	private final long FLASH_DURATION = 3000; // 총 3초간 깜빡임 (원하는 시간으로 설정 가능)
     	private boolean flashSequenceCompleted = false;
+    	private boolean bossSoundPlayed = false; 
 
 
     	// 무기별 쿨다운 (원하면 조정)
@@ -347,6 +350,8 @@ public class NoNextFloorGame extends JFrame {
         private OptionsPanel optionsPanel;  // options 패널 참조
         private BossZombie bossZombie;
         private int visionRadius = 150; // 주인공 주변 밝게 보이는 범위
+     // IngamePanel.java 클래스 맨 위 변수 선언부
+        
 
         // 키 입력 상태 추적 변수 (매끄러운 이동을 위해 추가)
         private boolean leftPressed = false;
@@ -362,8 +367,8 @@ public class NoNextFloorGame extends JFrame {
         private final long KEY_SHOW_DURATION = 2_000; // 2초
 
         // 키 등장 좌표
-        private final int keyX = 850;
-        private final int keyY = 200;
+        private final int keyX = 840;
+        private final int keyY = 190;
         
      // 3F Antidote 시스템
         private Image antidoteImage;
@@ -373,8 +378,8 @@ public class NoNextFloorGame extends JFrame {
         private final long ANTIDOTE_SHOW_DURATION = 30_000; // 2초
 
         // 해독제 등장 좌표
-        private final int antidoteX = 700;
-        private final int antidoteY = 450;
+        private final int antidoteX = 940;
+        private final int antidoteY = 330;
 
         public IngamePanel(NoNextFloorGame mainGame, int stage) {
             this.mainGame = mainGame;
@@ -558,7 +563,8 @@ public class NoNextFloorGame extends JFrame {
             }
          // 보스 좀비 스폰 (3스테이지일 때만)
             if(stage == 3) {
-                bossZombie = new BossZombie(950, 200);  // 원하는 위치로 세팅
+                bossZombie = new BossZombie(1000, 340);  // 원하는 위치로 세팅
+                bossZombie.setWalls(this.wallRects);
             }
 
 
@@ -569,6 +575,7 @@ public class NoNextFloorGame extends JFrame {
             addHomeButton();
             loadStageWalls(stage);
         }
+        
         private void onPlayerDied() {
             isRunning = false;
             isGameOver = true;
@@ -1121,8 +1128,14 @@ public class NoNextFloorGame extends JFrame {
                 
                 // 1. 현재 보스가 시야 범위 내에 있다면 감지 플래그를 활성화합니다.
                 if (dist <= visionRadius) {
-                    // BossZombie 클래스에 추가된 isDetected 플래그를 true로 설정
                     bossZombie.isDetected = true; 
+                    if (!bossSoundPlayed) { 
+                        if (!mainGame.isMuted()) {
+                            SoundManager.play("zombieboss", 1.0f); 
+                        }
+                        bossSoundPlayed = true; 
+                    }
+                    // -----------------------------------------------------
                 }
 
                 // 2. 🌟 [핵심] 보스가 한 번이라도 감지되었다면 (isDetected == true) 그립니다. 🌟
@@ -1392,21 +1405,24 @@ public class NoNextFloorGame extends JFrame {
             wallRects.clear();
             
             int wallThick = 24; // 벽 두께
-            wallRects.add(new Rectangle(240, 40, 1000, wallThick)); 
-            wallRects.add(new Rectangle(240, 40, wallThick, 340)); 
+            wallRects.add(new Rectangle(240, 40, 470, 50)); 
+            wallRects.add(new Rectangle(240, 40, 60, 340)); 
             wallRects.add(new Rectangle(690, 40, wallThick, 340));
-            wallRects.add(new Rectangle(250, 356, 370, wallThick)); 
-            wallRects.add(new Rectangle(680, 356, 580, wallThick));
+            wallRects.add(new Rectangle(250, 316, 370, 70)); 
+            wallRects.add(new Rectangle(680, 356, 580,70));
             wallRects.add(new Rectangle(970, 356, wallThick, 354));
-            wallRects.add(new Rectangle(580, 616, 700, wallThick));
+            wallRects.add(new Rectangle(580, 596, 220, wallThick));
+            wallRects.add(new Rectangle(800, 636, 220, wallThick));
+            wallRects.add(new Rectangle(860, 586, 100, 70));
+            wallRects.add(new Rectangle(900, 426, 100, 70));
+            wallRects.add(new Rectangle(800, 636, 220, wallThick));
             wallRects.add(new Rectangle(550, 366, wallThick, 114)); 
             wallRects.add(new Rectangle(440, 480, 120, wallThick));
             wallRects.add(new Rectangle(440, 480, wallThick, 130));
             wallRects.add(new Rectangle(440, 556, 120, wallThick));
-            wallRects.add(new Rectangle(380, 150, 200, 70));
+            wallRects.add(new Rectangle(420, 170, 170, 60));
             
-            wallRects.add(new Rectangle(1100, 64, 120, 60));
-            wallRects.add(new Rectangle(1080, 450, 120, 120));
+     
             wallRects.add(new Rectangle(550, 580, 60, 60));
         }
 
@@ -1417,7 +1433,7 @@ public class NoNextFloorGame extends JFrame {
        	    wallRects.add(new Rectangle(140, 150, 120, w));        // 상단
        	    wallRects.add(new Rectangle(140, 150, w, 170));        // 좌측
        	    wallRects.add(new Rectangle(140, 215, 120, w));        // 하단
-       	    wallRects.add(new Rectangle(240, 50, 400, w));
+       	    wallRects.add(new Rectangle(240, 80, 400, w));
        	    wallRects.add(new Rectangle(755, 150, w, 100));
        	    wallRects.add(new Rectangle(520, 130, 700, w));
        	    wallRects.add(new Rectangle(240, 50, w, 110));
@@ -1433,13 +1449,17 @@ public class NoNextFloorGame extends JFrame {
        	    wallRects.add(new Rectangle(520, 420, w, 90));
        	    wallRects.add(new Rectangle(680, 520, 330, w));
        	    wallRects.add(new Rectangle(1020, 520, w, 240));
+       	 wallRects.add(new Rectangle(890, 460, 60, 50));
        	    wallRects.add(new Rectangle(660, 520, w, 160));
        	    wallRects.add(new Rectangle(520, 630, 260, w));
        	    wallRects.add(new Rectangle(520, 500, w, 200));
        	    wallRects.add(new Rectangle(780, 330, 130, 70));
-       	    wallRects.add(new Rectangle(240, 520, 300, w));
+       	 wallRects.add(new Rectangle(810, 130, 130, 70));
+       	wallRects.add(new Rectangle(580, 130, 70, 60));
+       	    wallRects.add(new Rectangle(240, 480, 300, w));
        	    wallRects.add(new Rectangle(240, 215, w, 280));
        	    wallRects.add(new Rectangle(240, 760, 300, w));
+       	 wallRects.add(new Rectangle(350, 220, w, 120));
        	}
         private void loadStage3Walls() {
 
@@ -1450,11 +1470,15 @@ public class NoNextFloorGame extends JFrame {
        	    wallRects.add(new Rectangle(270, 30, 70, w));        
        	    wallRects.add(new Rectangle(350, 30, w, 60)); 
        	    wallRects.add(new Rectangle(320, 210, 120, 120)); 
+       	 wallRects.add(new Rectangle(200, 385, 120, 120)); 
        	    wallRects.add(new Rectangle(930, 420, 100, 100)); 
+       	 wallRects.add(new Rectangle(620, 350, 60, 60)); 
+       	 wallRects.add(new Rectangle(985, 550, 50, 50)); 
+       	wallRects.add(new Rectangle(980, 185, 30, 70)); 
        	    wallRects.add(new Rectangle(200, 100, 80, w)); 
-       	    wallRects.add(new Rectangle(350, 100, 220, w)); 
-       	    wallRects.add(new Rectangle(200, 100, w, 450)); 
-       	    wallRects.add(new Rectangle(550, 100, w, 300)); 
+       	    wallRects.add(new Rectangle(350, 100, 220, 50)); 
+       	    wallRects.add(new Rectangle(200, 100, 50, 450)); 
+       	    wallRects.add(new Rectangle(530, 100, 50, 300)); 
        	    wallRects.add(new Rectangle(550, 410, 100, w)); 
        	    wallRects.add(new Rectangle(520, 490, 100, w)); 
        	    wallRects.add(new Rectangle(200, 500, 360, w)); 
@@ -1467,6 +1491,7 @@ public class NoNextFloorGame extends JFrame {
        	    wallRects.add(new Rectangle(1050, 120, w, 5000)); 
        	    
        	}
+
 
         // 📌 6) 플레이어/좀비 충돌 체크 함수 (통합)
         private boolean checkCollision(Rectangle nextPos) {
@@ -1578,41 +1603,52 @@ public class NoNextFloorGame extends JFrame {
                    }
                }
                
-        	   if (stageForThisPanel == 3 && bossZombie != null) {
-        	        
-        		// 1. 일반 좀비 전멸 조건 확인
-        	        boolean allRegularZombiesDefeated = zombies.isEmpty(); 
+               if (stageForThisPanel == 3) {
+                   
+                   // 🌟 [추가됨] 일반 좀비가 모두 죽으면 errr.wav 1회 재생 🌟
+                   if (stageForThisPanel == 3 && zombies.isEmpty()) {
+                       // 아직 소리가 난 적이 없다면 (최초 1회 진입)
+                       if (!errrSoundPlayed) {
+                           errrSoundPlayed = true; // 플래그 변경 (중복 재생 방지)
+                           
+                           System.out.println("🔊 [Sound] 좀비 전멸! errr.wav 1회 재생!"); 
+                           
+                           if (!mainGame.isMuted()) {
+                               SoundManager.play("errr", 1.0f); // 1회 재생
+                           }
+                       }
+                   }
 
-        	        // 2. 깜빡임 시작 조건:
-        	        //    전멸했고, 보스가 살아있고, 아직 깜빡임이 시작되지 않았으며, 
-        	        //    🌟 [추가]: 시퀀스가 이전에 완료되지 않았을 때만 시작합니다. 🌟
-        	        if (allRegularZombiesDefeated && !isFlashingImage && !flashSequenceCompleted) {
-        	            isFlashingImage = true;
-        	            flashStartTime = System.currentTimeMillis();
-        	        }
-        	    }
-        	    
-        	    // 3. 깜빡임 시간 종료 체크
-        	    if (isFlashingImage) {
-        	        long now = System.currentTimeMillis();
-        	        
-        	        if (now - flashStartTime > FLASH_DURATION) {
-        	            isFlashingImage = false;
-        	            // 🌟 [추가]: 깜빡임이 끝나면 시퀀스 완료 플래그를 true로 설정합니다. 🌟
-        	            flashSequenceCompleted = true; 
-        	            // 깜빡임 종료 후, 보스가 살아있다면 게임은 계속 진행됩니다.
-        	        }
-        	    }
-        	   if (zombies.isEmpty()) {
-        		    // Stage 1: zombie1 사운드 정지
-        		    if (stageForThisPanel == 1) {
-        		        SoundManager.stop("zombie1");
-        		    } 
-        		    // Stage 2 & 3: zombie23 사운드 정지 (3스테이지는 보스가 남더라도 일반 좀비 소리는 멈춥니다)
-        		    else if (stageForThisPanel == 2 || stageForThisPanel == 3) {
-        		        SoundManager.stop("zombie23");
-        		    }
-        		}
+                   // 🌟 [기존 스켈레톤 유지] 깜빡임 시작 조건 🌟
+                   // 'allRegularZombiesDefeated' 변수 없이 zombies.isEmpty() 직접 사용
+                   if (zombies.isEmpty() && !isFlashingImage && !flashSequenceCompleted) {
+                       isFlashingImage = true;
+                       flashStartTime = System.currentTimeMillis();
+                   }
+               }
+               
+               // =============================================================
+               // 2. [기존 유지] 깜빡임 시간 종료 체크
+               // =============================================================
+               if (isFlashingImage) {
+                   long now = System.currentTimeMillis();
+                   
+                   if (now - flashStartTime > FLASH_DURATION) {
+                       isFlashingImage = false;
+                       // 깜빡임이 끝나면 시퀀스 완료 플래그 설정
+                       flashSequenceCompleted = true; 
+                   }
+               }
+
+               // =============================================================
+               // 3. [기존 유지] 좀비 앰비언트 사운드 정지
+               // =============================================================
+               if (zombies.isEmpty()) {
+                   if (stageForThisPanel == 1) SoundManager.stop("zombie1");
+                   else if (stageForThisPanel == 2 || stageForThisPanel == 3) SoundManager.stop("zombie23");
+               }
+
+               if (player == null || zombies == null) return;
 
                // =========================================================
                // 1. 총알 업데이트 및 제거 (+ 벽 충돌 기능 추가)

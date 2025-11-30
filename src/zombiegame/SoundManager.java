@@ -25,6 +25,9 @@ public class SoundManager {
         loadClip("shotgun", "sounds/shotgun.wav");
         loadClip("start", "sounds/start.wav");
         loadClip("zombie_die", "sounds/zombie_die.wav");
+        loadClip("errr", "sounds/errr.wav");
+        loadClip("zombieboss", "sounds/zombieboss.wav");
+    
     }
 
     private static void loadClip(String key, String filePath) {
