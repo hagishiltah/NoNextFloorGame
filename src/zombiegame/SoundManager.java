@@ -74,7 +74,10 @@ public class SoundManager {
     // 볼륨 설정
     private static void setVolume(Clip clip, float volume) {
         FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-        float dB = (float) (Math.log10(volume <= 0 ? 0.0001 : volume) * 20);
+
+        // -40dB ~ 0dB
+        float dB = -40f + (volume * 40f); // volume=1 → 0dB, volume=0 → -40dB
         gainControl.setValue(dB);
     }
+
 }

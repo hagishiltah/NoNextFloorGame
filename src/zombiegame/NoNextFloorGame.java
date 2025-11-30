@@ -827,7 +827,7 @@ public class NoNextFloorGame extends JFrame {
         /* ===================== killZombie (좀비 사망 SFX) ===================== */
         private void killZombie(Zombie z) {
             zombies.remove(z);
-            if (!mainGame.isMuted()) SoundManager.play("zombie_die", 0.4f); // 🌟 좀비 사망 SFX
+            if (!mainGame.isMuted()) SoundManager.play("zombie_die", 0.5f); // 🌟 좀비 사망 SFX
             
             // *** 좀비 사망 시 로직 (점수/아이템) 추가 ***
         }
@@ -1614,7 +1614,7 @@ public class NoNextFloorGame extends JFrame {
                            System.out.println("🔊 [Sound] 좀비 전멸! errr.wav 1회 재생!"); 
                            
                            if (!mainGame.isMuted()) {
-                               SoundManager.play("errr", 1.0f); // 1회 재생
+                               SoundManager.play("errr", 0.7f); // 1회 재생
                            }
                        }
                    }
@@ -1723,7 +1723,7 @@ public class NoNextFloorGame extends JFrame {
                    if (dist < 50 && z.canAttack()) {
                        player.takeDamage(1);
                        if (!mainGame.isMuted()) {
-                           SoundManager.play("hit", 1.0f); 
+                           SoundManager.play("hit", 0.3f); 
                        }
                        z.recordAttack();
                        System.out.println("좀비에게 공격당함! Player HP: " + player.hp);
