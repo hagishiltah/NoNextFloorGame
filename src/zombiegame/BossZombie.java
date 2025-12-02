@@ -1,10 +1,8 @@
 package zombiegame;
 
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
-import java.util.ArrayList;
 
 // 상속
 public class BossZombie extends Zombie {
@@ -14,6 +12,14 @@ public class BossZombie extends Zombie {
     // 1️⃣ [추가] 소수점 단위 이동을 기억할 정밀 좌표 변수
     private double preciseX;
     private double preciseY;
+    
+    // 속도 변화 관련 변수
+    private double baseSpeed = 1.1;  // 기본 속도
+    private double slowSpeed = 0.7;  // 느린 속도
+    private double fastSpeed = 1.8;  // 빠른 속도
+    private long speedChangeInterval = 2000;  // 속도 변경 주기 (밀리초)
+    private long lastSpeedChangeTime = 0;
+    private boolean isFastMode = false;  // 현재 빠른 모드인지
 
     public BossZombie(int startX, int startY) {
         
@@ -25,8 +31,9 @@ public class BossZombie extends Zombie {
     
         this.hp = 7;
         this.maxHp = 7;
-        this.speed = 1.1; 
-        this.scale = 0.09; 
+        this.speed = baseSpeed;  // 기본 속도로 시작
+        this.lastSpeedChangeTime = System.currentTimeMillis(); 
+        this.scale = 0.11; 
         this.CHASE_RADIUS = 550; 
 
         try {
@@ -50,6 +57,14 @@ public class BossZombie extends Zombie {
     @Override
     public void update(Player player) {
         if (hp <= 0) return; 
+
+        // 속도 변화 로직: 주기적으로 느려졌다가 빨라졌다가 반복
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastSpeedChangeTime >= speedChangeInterval) {
+            isFastMode = !isFastMode;  // 모드 전환
+            this.speed = isFastMode ? fastSpeed : slowSpeed;
+            lastSpeedChangeTime = currentTime;
+        }
 
         double distance = Math.hypot(player.x - x, player.y - y);
 

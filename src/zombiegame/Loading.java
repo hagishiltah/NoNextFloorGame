@@ -55,8 +55,8 @@ public class Loading extends JPanel implements MouseListener, KeyListener {
 
         // 🌟 [추가된 부분] 로딩 화면 진입 시 elevator.wav 반복 재생 🌟
         if (!mainGame.isMuted()) {
-            // 볼륨 0.5f로 엘리베이터 사운드 반복 재생 시작
-            SoundManager.playLoop("elevator", 0.5f); 
+            // 볼륨 0.4f로 엘리베이터 사운드 반복 재생 시작 (게임 배경음 수준)
+            SoundManager.playLoop("elevator", 0.6f); 
         }
 
         addMouseListener(this);

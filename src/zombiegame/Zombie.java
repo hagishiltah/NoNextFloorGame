@@ -5,7 +5,6 @@ import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
-import java.util.ArrayList;
 import java.util.List; // 🌟 [필수] List 임포트 추가
 
 public class Zombie {
@@ -142,6 +141,7 @@ public class Zombie {
         this.angle = Math.atan2(pCenterY - centerY, pCenterX - centerX);
 
         if (distance < CHASE_RADIUS) {
+            // 원래 방식: X축과 Y축을 따로 처리 (더 안정적)
             if (player.x > x) x += speed;
             else if (player.x < x) x -= speed;
             if (player.y > y) y += speed;

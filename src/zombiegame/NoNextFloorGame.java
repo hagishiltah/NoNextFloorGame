@@ -15,7 +15,6 @@ import java.awt.BasicStroke;
 
 
 public class NoNextFloorGame extends JFrame {
-    private Image backgroundImage;
     private boolean isMuted = false;
     private JButton soundButton;
     private JButton startButton;
@@ -33,7 +32,6 @@ public class NoNextFloorGame extends JFrame {
     // private static final Color BLACK_TRANSPARENT = new Color(0, 0, 0, 180);
 
     // 스테이지 관리
-    private int stage = 1;
     private final int MAX_STAGE = 3;
  // 전역 탄약 (스테이지 전환 시 유지됨)
     private int pistolAmmo = 75;
@@ -58,19 +56,6 @@ public class NoNextFloorGame extends JFrame {
         setSize(1280, 720);
         setLocationRelativeTo(null);
         setResizable(false);
-
-        // 메인 메뉴 배경 이미지 로드 (images/elevator_bg.png)
-        try {
-            File bgFile = new File("images/elevator_bg.png");
-            if (bgFile.exists()) {
-                backgroundImage = ImageIO.read(bgFile);
-            } else {
-                throw new IOException("파일을 찾을 수 없습니다: images/elevator_bg.png");
-            }
-        } catch (IOException e) {
-            System.out.println("배경 이미지를 찾을 수 없습니다: " + e.getMessage());
-            backgroundImage = null;
-        }
 
         // 메인 패널 설정 (스켈레톤 유지)
         SoundManager.loadSounds();
@@ -106,7 +91,7 @@ public class NoNextFloorGame extends JFrame {
             setFocusable(true); // 키 입력을 받기 위해 필수
             addKeyListener(this);
             
-            if (!isMuted) SoundManager.playLoop("start", 0.3f);
+            if (!isMuted) SoundManager.playLoop("start", 0.45f);
             
             // 사운드 토글 버튼 (작게)
             soundButton = createSoundButton();
@@ -201,7 +186,7 @@ public class NoNextFloorGame extends JFrame {
                 if (isMuted) {
                     SoundManager.stop("start");
                 } else {
-                    SoundManager.playLoop("start", 0.3f);
+                    SoundManager.playLoop("start", 0.45f);
                 }
                 button.repaint();
                 GamePanel.this.requestFocusInWindow();
@@ -384,6 +369,10 @@ public class NoNextFloorGame extends JFrame {
         public IngamePanel(NoNextFloorGame mainGame, int stage) {
             this.mainGame = mainGame;
             this.stageForThisPanel = stage;
+            // 1층에서는 권총만 사용 가능
+            if (stage == 1) {
+                currentWeapon = WEAPON_PISTOL;
+            }
             loadTelevisionImage();
             loadUIResources();
 
@@ -399,26 +388,26 @@ public class NoNextFloorGame extends JFrame {
                 switch(stage) {
                     case 1:
                         //SoundManager.playLoop("bgm", 0.03f); // 👈 bgm.wav 추가
-                        SoundManager.playLoop("game_bg", 0.03f);
+                        SoundManager.playLoop("game_bg", 0.45f);
                         break;
                     case 2:
                        // SoundManager.playLoop("bgm", 0.03f); // 👈 bgm.wav 추가
-                        SoundManager.playLoop("game_bg2", 0.15f);
+                        SoundManager.playLoop("game_bg2", 0.45f);
                         break;
                     case 3:
                        // SoundManager.playLoop("bgm", 0.03f); // 👈 bgm.wav 추가
-                        SoundManager.playLoop("game_bg3", 0.15f);
+                        SoundManager.playLoop("game_bg3", 0.45f);
                         break;
                 }
                 
                 // 3. 스테이지별 좀비 BGM
                 switch(stage) {
                     case 1:
-                        SoundManager.playLoop("zombie1", 0.2f);
+                        SoundManager.playLoop("zombie1", 0.6f);
                         break;
                     case 2:
                     case 3:
-                        SoundManager.playLoop("zombie23", 0.2f);
+                        SoundManager.playLoop("zombie23", 0.5f);
                         break;
                 }
             } 
@@ -454,8 +443,11 @@ public class NoNextFloorGame extends JFrame {
                         return;
                     }
                     if (shotgunSlotRect != null && shotgunSlotRect.contains(mx, my)) {
-                        currentWeapon = WEAPON_SHOTGUN;
-                        System.out.println("SHOTGUN selected");
+                        // 1층에서는 샷건 선택 불가
+                        if (stageForThisPanel != 1) {
+                            currentWeapon = WEAPON_SHOTGUN;
+                            System.out.println("SHOTGUN selected");
+                        }
                         return;
                     }
                     
@@ -614,6 +606,10 @@ public class NoNextFloorGame extends JFrame {
                 player.hp = 3;  // 초기 체력으로 복원
                 bullets.clear();
                 zombies.clear();
+                
+                // 탄약 초기화
+                pistolAmmo = 75;
+                shotgunAmmo = 25;
 
                 // 플레이어 위치를 스테이지 시작 지점으로 리셋
                 switch(stageForThisPanel) {
@@ -641,6 +637,13 @@ public class NoNextFloorGame extends JFrame {
                 }
                 if(stageForThisPanel == 3) {
                     bossZombie = new BossZombie(950, 200);  // 원래 시작 위치로
+                    bossZombie.setWalls(this.wallRects);  // 벽 정보 설정 (버그 수정)
+                    // 티비 화면 관련 플래그 초기화
+                    isFlashingImage = false;
+                    flashSequenceCompleted = false;
+                    flashStartTime = 0;
+                    bossSoundPlayed = false;
+                    bossZombie.isDetected = true;  // 재시작 시 보스를 바로 감지 상태로 설정하여 즉시 따라오도록 함
                 }
 
                 lastShootTime = 0;
@@ -651,22 +654,22 @@ public class NoNextFloorGame extends JFrame {
                 if (!mainGame.isMuted()) { 
                     switch(stageForThisPanel) { 
                         case 1:
-                            SoundManager.playLoop("game_bg", 0.15f);
+                            SoundManager.playLoop("game_bg", 0.45f);
                             break;
                         case 2:
-                            SoundManager.playLoop("game_bg2", 0.15f);
+                            SoundManager.playLoop("game_bg2", 0.225f);
                             break;
                         case 3:
-                            SoundManager.playLoop("game_bg3", 0.15f);
+                            SoundManager.playLoop("game_bg3", 0.225f);
                             break;
                     } 
                     switch(stageForThisPanel) { 
                         case 1:
-                            SoundManager.playLoop("zombie1", 0.2f);
+                            SoundManager.playLoop("zombie1", 0.3f);
                             break;
                         case 2:
                         case 3:
-                            SoundManager.playLoop("zombie23", 0.2f);
+                            SoundManager.playLoop("zombie23", 0.25f);
                             break;
                     } 
                 }
@@ -775,8 +778,14 @@ public class NoNextFloorGame extends JFrame {
             
             // 🌟 무기 SFX 재생
             if (!mainGame.isMuted()) {
-                if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 0.7f);
-                else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                // 보스 층(3층)에서는 총소리를 약간 낮춤
+                if (stageForThisPanel == 3) {
+                    if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 1.0f);
+                    else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                } else {
+                    if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 1.0f);
+                    else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                }
             }
             
             if (currentWeapon == WEAPON_PISTOL) {
@@ -789,6 +798,11 @@ public class NoNextFloorGame extends JFrame {
                 bullets.add(new Bullet(centerX, centerY, angle, pistolLife));
 
             } else if (currentWeapon == WEAPON_SHOTGUN) {
+                // 1층에서는 샷건 발사 불가
+                if (stageForThisPanel == 1) {
+                    currentWeapon = WEAPON_PISTOL; // 권총으로 강제 변경
+                    return;
+                }
                 if (NoNextFloorGame.this.shotgunAmmo <= 0) return;
 
                 NoNextFloorGame.this.shotgunAmmo--;
@@ -817,7 +831,7 @@ public class NoNextFloorGame extends JFrame {
         /* ===================== playerHit (피격 SFX) ===================== */
         public void playerHit(int damage) {
             player.hp -= damage;
-            if (!mainGame.isMuted()) SoundManager.play("hit", 3.0f); // 🌟 피격 SFX
+            if (!mainGame.isMuted()) SoundManager.play("hit", 1.0f); // 🌟 피격 SFX (최대값 제한)
             
             if (player.hp <= 0) {
                 onPlayerDied();
@@ -827,68 +841,12 @@ public class NoNextFloorGame extends JFrame {
         /* ===================== killZombie (좀비 사망 SFX) ===================== */
         private void killZombie(Zombie z) {
             zombies.remove(z);
-            if (!mainGame.isMuted()) SoundManager.play("zombie_die", 0.5f); // 🌟 좀비 사망 SFX
+            if (!mainGame.isMuted()) SoundManager.play("zombie_die", 1.0f); // 🌟 좀비 사망 SFX (최대값)
             
             // *** 좀비 사망 시 로직 (점수/아이템) 추가 ***
         }
         
 
-        /* ===================== onStageCleared (엘리베이터 BGM) ===================== */
-        private void onStageCleared() {
-            isRunning = false;
-            
-            // 🌟 BGM 모두 정지
-            SoundManager.stop("bgm");
-            SoundManager.stop("game_bg");
-            SoundManager.stop("game_bg2");
-            SoundManager.stop("game_bg3");
-            SoundManager.stop("zombie1");
-            SoundManager.stop("zombie23");
-            
-            if (!mainGame.isMuted()) SoundManager.playLoop("elevator", 0.5f); // 🌟 엘리베이터 BGM
-            // *** 다음 스테이지 전환 로직은 mainGame.onStageCleared(int)에서 처리됩니다. ***
-        }
-
-        /* ===================== revivePlayer (부활 로직 - BGM 재시작) ===================== */
-        // 게임오버 버튼 제거로 인해 현재 사용되지 않습니다.
-        private void revivePlayer() { 
-            // *** 부활 게임 로직 (체력, 위치, 쿨다운 등 초기화) ***
-            
-            // 🌟 BGM 재시작
-        	if (!mainGame.isMuted()) {
-                SoundManager.stop("gameover");
-                
-                // 1. 공통 BGM (볼륨 0.2f -> 0.1f로 낮춤)
-               // SoundManager.playLoop("bgm", 0.1f); 
-                
-                // 2. 스테이지별 BGM (볼륨 0.15f -> 0.08f로 낮춤, 파일명은 기존 유지)
-                switch(stageForThisPanel) {
-                    case 1:
-                        SoundManager.playLoop("game_bg", 0.03f);
-                        break;
-                    case 2:
-                        SoundManager.playLoop("game_bg2", 0.08f);
-                        break;
-                    case 3:
-                        SoundManager.playLoop("game_bg3", 0.08f);
-                        break;
-                }
-                
-                // 3. 좀비 사운드는 1F, 2F, 3F 스테이지 BGM이 재생 중일 때만 나오도록 조건 변경 
-                //    (game_bg1, game_bg2, game_bg3에 해당한다고 가정)
-                //    좀비 사운드 자체의 볼륨은 0.4f로 유지합니다.
-                //    요청하신 조건이 '이 BGM에서만 나오게' 이므로, 모든 BGM에 조건이 걸리도록 유지합니다.
-                switch(stageForThisPanel) {
-                    case 1:
-                        SoundManager.playLoop("zombie1", 0.2f);
-                        break;
-                    case 2:
-                    case 3:
-                        SoundManager.playLoop("zombie23", 0.2f);
-                        break;
-                }
-            }
-        }
 
            private void addHomeButton() {
                homeButton = new JButton();
@@ -1131,7 +1089,7 @@ public class NoNextFloorGame extends JFrame {
                     bossZombie.isDetected = true; 
                     if (!bossSoundPlayed) { 
                         if (!mainGame.isMuted()) {
-                            SoundManager.play("zombieboss", 1.0f); 
+                            SoundManager.play("zombieboss", 0.5f); 
                         }
                         bossSoundPlayed = true; 
                     }
@@ -1189,8 +1147,8 @@ public class NoNextFloorGame extends JFrame {
                        g.drawString("" + NoNextFloorGame.this.pistolAmmo, pistolSlotRect.x - 10, pistolSlotRect.y - 6);
                    }
 
-                   // 샷건 슬롯 (왼쪽)
-                   if (shotgunSlotRect != null) {
+                   // 샷건 슬롯 (왼쪽) - 1층에서는 표시하지 않음
+                   if (shotgunSlotRect != null && stageForThisPanel != 1) {
                        g.setColor(new Color(0, 0, 0, 120));
                        g.fillRect(shotgunSlotRect.x, shotgunSlotRect.y, shotgunSlotRect.width, shotgunSlotRect.height);
                        if (shotgunIcon != null) g.drawImage(shotgunIcon, shotgunSlotRect.x + 4, shotgunSlotRect.y + 4, shotgunSlotRect.width - 8, shotgunSlotRect.height - 8, null);
@@ -1357,8 +1315,14 @@ public class NoNextFloorGame extends JFrame {
                
                // 🌟 무기 SFX 재생
                if (!mainGame.isMuted()) {
-                   if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 0.7f);
-                   else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                   // 보스 층(3층)에서는 총소리를 약간 낮춤
+                   if (stageForThisPanel == 3) {
+                       if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 1.0f);
+                       else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                   } else {
+                       if(currentWeapon == WEAPON_PISTOL) SoundManager.play("pistol", 1.0f);
+                       else if(currentWeapon == WEAPON_SHOTGUN) SoundManager.play("shotgun", 0.7f);
+                   }
                }
 
                lastShootTime = now;
@@ -1369,7 +1333,12 @@ public class NoNextFloorGame extends JFrame {
                    NoNextFloorGame.this.pistolAmmo--;
                    int pistolLife = 120;
                    bullets.add(new Bullet(bulletX, bulletY, player.angle, pistolLife));
-               } else {
+               } else if (currentWeapon == WEAPON_SHOTGUN) {
+                   // 1층에서는 샷건 발사 불가
+                   if (stageForThisPanel == 1) {
+                       currentWeapon = WEAPON_PISTOL; // 권총으로 강제 변경
+                       return;
+                   }
                    NoNextFloorGame.this.shotgunAmmo--;
                    int shotgunLife = 25;
                    double up = -Math.PI / 2.0;
@@ -1676,22 +1645,22 @@ public class NoNextFloorGame extends JFrame {
                // =========================================================
                
                // 추격 거리 설정 (이 거리 밖이면 안 쫓아옴)
-               final int DETECTION_RANGE = 400; 
+               final int DETECTION_RANGE = 800; 
 
                for (int i = zombies.size() - 1; i >= 0; i--) {
                    Zombie z = zombies.get(i);
                    
-                   // ★ 추격 여부 판단 (거리 + 시야)
+                   // ★ 추격 여부 판단 (거리 + 시야 체크)
                    double distToPlayer = Math.hypot(player.x - z.x, player.y - z.y);
                    boolean canChase = (distToPlayer < DETECTION_RANGE) && hasLineOfSight(z, player);
 
-                   // [기존 이동 로직]을 if (canChase)로 감쌌습니다.
+                   // 좀비 추적 로직
                    if (canChase) {
                        // 1. 현재 위치 저장
                        int prevX = z.x;
                        int prevY = z.y;
 
-                       // 2. 좀비가 가고 싶은 목표 위치 계산
+                       // 2. 좀비가 가고 싶은 목표 위치 계산 (원래 방식)
                        z.update(player); 
                        int targetX = z.x;
                        int targetY = z.y;
@@ -1700,16 +1669,67 @@ public class NoNextFloorGame extends JFrame {
                        z.x = prevX;
                        z.y = prevY;
 
-                       // 4. [X축 시도] 좌우로만 움직여본다.
-                       Rectangle nextXPos = new Rectangle(targetX, prevY, z.zombieWidth, z.zombieHeight);
-                       if (!checkCollision(nextXPos)) {
-                           z.x = targetX; 
-                       }
-
-                       // 5. [Y축 시도] 상하로만 움직여본다.
-                       Rectangle nextYPos = new Rectangle(z.x, targetY, z.zombieWidth, z.zombieHeight);
-                       if (!checkCollision(nextYPos)) {
-                           z.y = targetY; 
+                       // 4. 대각선 이동 시도
+                       Rectangle nextPos = new Rectangle(targetX, targetY, z.zombieWidth, z.zombieHeight);
+                       if (!checkCollision(nextPos)) {
+                           z.x = targetX;
+                           z.y = targetY;
+                       } else {
+                           // 벽에 막히면 X축 또는 Y축으로만 이동 시도
+                           boolean movedX = false;
+                           boolean movedY = false;
+                           
+                           // X축 이동 시도
+                           Rectangle nextXPos = new Rectangle(targetX, prevY, z.zombieWidth, z.zombieHeight);
+                           if (!checkCollision(nextXPos)) {
+                               z.x = targetX;
+                               movedX = true;
+                           }
+                           
+                           // Y축 이동 시도 (X축 이동 여부와 관계없이 독립적으로 체크)
+                           Rectangle nextYPos = new Rectangle(prevX, targetY, z.zombieWidth, z.zombieHeight);
+                           if (!checkCollision(nextYPos)) {
+                               z.y = targetY;
+                               movedY = true;
+                           }
+                           
+                           // 둘 다 실패했을 때, 벽을 따라 이동 시도 (수직/수평 방향 우선)
+                           if (!movedX && !movedY) {
+                               // 플레이어 방향 계산
+                               int dx = player.x - prevX;
+                               int dy = player.y - prevY;
+                               
+                               // X축 우선 이동 시도 (더 큰 차이가 있는 축)
+                               if (Math.abs(dx) > Math.abs(dy)) {
+                                   // X축으로만 이동
+                                   int tryX = prevX + (dx > 0 ? (int)z.speed : -(int)z.speed);
+                                   Rectangle tryXPos = new Rectangle(tryX, prevY, z.zombieWidth, z.zombieHeight);
+                                   if (!checkCollision(tryXPos)) {
+                                       z.x = tryX;
+                                   } else {
+                                       // X축 실패 시 Y축 시도
+                                       int tryY = prevY + (dy > 0 ? (int)z.speed : -(int)z.speed);
+                                       Rectangle tryYPos = new Rectangle(prevX, tryY, z.zombieWidth, z.zombieHeight);
+                                       if (!checkCollision(tryYPos)) {
+                                           z.y = tryY;
+                                       }
+                                   }
+                               } else {
+                                   // Y축 우선 이동 시도
+                                   int tryY = prevY + (dy > 0 ? (int)z.speed : -(int)z.speed);
+                                   Rectangle tryYPos = new Rectangle(prevX, tryY, z.zombieWidth, z.zombieHeight);
+                                   if (!checkCollision(tryYPos)) {
+                                       z.y = tryY;
+                                   } else {
+                                       // Y축 실패 시 X축 시도
+                                       int tryX = prevX + (dx > 0 ? (int)z.speed : -(int)z.speed);
+                                       Rectangle tryXPos = new Rectangle(tryX, prevY, z.zombieWidth, z.zombieHeight);
+                                       if (!checkCollision(tryXPos)) {
+                                           z.x = tryX;
+                                       }
+                                   }
+                               }
+                           }
                        }
                    } 
                    // canChase가 false면 좀비는 제자리에 멈춤
@@ -1723,7 +1743,7 @@ public class NoNextFloorGame extends JFrame {
                    if (dist < 50 && z.canAttack()) {
                        player.takeDamage(1);
                        if (!mainGame.isMuted()) {
-                           SoundManager.play("hit", 0.3f); 
+                           SoundManager.play("hit", 0.45f); 
                        }
                        z.recordAttack();
                        System.out.println("좀비에게 공격당함! Player HP: " + player.hp);
@@ -1759,7 +1779,7 @@ public class NoNextFloorGame extends JFrame {
                    if (bossDist < 70 && bossZombie.canAttack()) {
                        player.takeDamage(1);
                        if (!mainGame.isMuted()) {
-                           SoundManager.play("hit", 1.0f); 
+                           SoundManager.play("hit", 0.45f); 
                        }
                        bossZombie.recordAttack();
                        System.out.println("보스에게 공격당함!");
@@ -1932,7 +1952,6 @@ public class NoNextFloorGame extends JFrame {
         }
         
         // 3) 새 Loading 패널 추가
-        this.stage = stageToShow;
         loadingPanel = new Loading(this, stageToShow);
         add(loadingPanel);
         revalidate();
@@ -2017,11 +2036,6 @@ public class NoNextFloorGame extends JFrame {
         SoundManager.stop("bgm"); 
         SoundManager.stop("elevator"); // 혹시 로딩 화면에서 넘어온 잔여 사운드 정지
         // --------------------------------------------------------
-
-        // 🌟 [추가]: 엔딩 패널에서 elevator.wav 재생 🌟
-        if (!isMuted()) { // isMuted 상태가 아닐 때만 재생
-            SoundManager.playLoop("elevator", 0.5f); 
-        }
 
         // 2) 엔딩 패널 생성 및 추가
         // EndingPanel.java가 독립적인 파일이라고 가정하고 호출합니다.
